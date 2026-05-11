@@ -1444,19 +1444,43 @@ Retorne APENAS o JSON válido, sem explicações, sem markdown, sem comentários
                 console.warn('Não foi possível salvar no localStorage:', e);
             }
 
-            const shareUrl = `${baseUrl}#${timestampKey}`;
+            const shortKey = timestampKey;
+            const fullShareUrl = `${baseUrl}#${dadosCompactados}`;
+            const shortShareUrl = `${baseUrl}#${shortKey}`;
 
             // Mostrar tamanho do link
             const tamanhoOriginal = JSON.stringify(dadosCompartilhamento).length;
             const tamanhoFinal = dadosCompactados.length;
             const reducao = Math.round((1 - tamanhoFinal / tamanhoOriginal) * 100);
 
-            // Copiar para clipboard
-            navigator.clipboard.writeText(shareUrl).then(() => {
-                alert(`✅ Link copiado!\n\n📊 ${shareUrl.substring(0, 55)}...\n📦 ${tamanhoOriginal} → ${tamanhoFinal} caracteres (${reducao}% menor)\n🔗 Qualquer pessoa pode visualizar`);
-            }).catch(() => {
-                prompt('📊 Copie este link para compartilhar:', shareUrl);
-            });
+            // Tentar encurtar via endpoint /api/shorten (se implantado)
+            (async () => {
+                try {
+                    const resp = await fetch('/api/shorten', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: fullShareUrl })
+                    });
+                    if (resp.ok) {
+                        const j = await resp.json();
+                        if (j.shortUrl && j.shortUrl.length <= 50) {
+                            await navigator.clipboard.writeText(j.shortUrl);
+                            alert(`✅ Link curto copiado!\n\n${j.shortUrl}\n\n(Original: ${tamanhoOriginal} → ${tamanhoFinal} chars)`);
+                            return;
+                        }
+                    }
+                } catch (e) {
+                    // ignore and fallback
+                }
+
+                // Fallback: copiar o fullShareUrl (portável)
+                try {
+                    await navigator.clipboard.writeText(fullShareUrl);
+                    alert(`✅ Link copiado (completo)!\n\n📊 ${fullShareUrl.substring(0, 80)}...\n📦 ${tamanhoOriginal} → ${tamanhoFinal} caracteres (${reducao}% menor)\n🔗 Qualquer pessoa pode visualizar`);
+                } catch (e) {
+                    prompt('📊 Copie este link para compartilhar (completo):', fullShareUrl);
+                }
+            })();
         }
     </script>
 </body>
