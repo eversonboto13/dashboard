@@ -7,6 +7,7 @@
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
 
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
@@ -260,7 +261,8 @@
             <input type="file" id="imageUpload" accept="image/*" multiple />
         </label>
         <button class="btn-excel" onclick="exportarExcel()">📥 Excel</button>
-        <button class="btn-excel" onclick="gerarVisaoSomenteLeitura()" style="background: linear-gradient(45deg, #375a7f, #00a88a);">� Somente Visualização</button>
+        <button class="btn-excel" onclick="gerarVisaoSomenteLeitura()" style="background: linear-gradient(45deg, #375a7f, #00a88a);">🔒 Somente Visualização</button>
+        <button class="btn-excel" onclick="baixarPdfRelatorio()" style="background: linear-gradient(45deg, #264653, #2a9d8f);">📄 Baixar PDF</button>
 
         <div class="api-container">
             <div class="api-toggle">
@@ -1453,6 +1455,66 @@ Retorne APENAS o JSON válido, sem explicações, sem markdown, sem comentários
             a.click();
             a.remove();
             URL.revokeObjectURL(url);
+        }
+
+        // Gera e baixa um PDF do relatório read-only (usa html2pdf)
+        async function baixarPdfRelatorio() {
+            if (dashboardData.posts.length === 0) {
+                alert('⚠️ Nenhum dado para exportar. Analise um print primeiro.');
+                return;
+            }
+
+            // Criar um container temporário com o conteúdo do relatório
+            const container = document.createElement('div');
+            container.style.padding = '20px';
+            container.style.fontFamily = 'Arial,Helvetica,sans-serif';
+            container.innerHTML = `
+                <h1>Relatório - Somente Visualização</h1>
+                <p>Gerado em: ${new Date().toLocaleString()}</p>
+                <h2>Métricas Principais</h2>
+                <table style="border-collapse:collapse;width:100%;margin-bottom:16px">${
+                    ['Alcance','Impressões','Engajamento','Taxa de Engajamento %','Novos Seguidores','Cliques em Links']
+                    .map((k,i)=>`<tr><th style="border:1px solid #ddd;padding:8px;text-align:left;background:#f7f7f7">${k}</th><td style="border:1px solid #ddd;padding:8px">${[dashboardData.metrics.alcance,dashboardData.metrics.impressoes,dashboardData.metrics.engajamento,dashboardData.metrics.taxa,dashboardData.metrics.seguidores,dashboardData.metrics.cliques][i]}</td></tr>`).join('')
+                }</table>
+                <h2>Posts Detalhados</h2>
+                <table style="border-collapse:collapse;width:100%;margin-bottom:16px"><tr><th style="border:1px solid #ddd;padding:8px;background:#f7f7f7">#</th><th style="border:1px solid #ddd;padding:8px;background:#f7f7f7">Tipo</th><th style="border:1px solid #ddd;padding:8px;background:#f7f7f7">Legenda</th><th style="border:1px solid #ddd;padding:8px;background:#f7f7f7">Alcance</th><th style="border:1px solid #ddd;padding:8px;background:#f7f7f7">Engajamento</th><th style="border:1px solid #ddd;padding:8px;background:#f7f7f7">Taxa %</th></tr>
+                    ${dashboardData.posts.map((p,i)=>`<tr><td style="border:1px solid #ddd;padding:6px">${i+1}</td><td style="border:1px solid #ddd;padding:6px">${p.tipo||''}</td><td style="border:1px solid #ddd;padding:6px">${(p.legenda||'').replace(/</g,'&lt;')}</td><td style="border:1px solid #ddd;padding:6px">${p.alcance||0}</td><td style="border:1px solid #ddd;padding:6px">${p.engajamento||0}</td><td style="border:1px solid #ddd;padding:6px">${p.taxa||0}</td></tr>`).join('')}
+                </table>
+                <h2>Gráficos</h2>
+            `;
+
+            // Anexar imagens dos charts
+            const charts = Array.from(document.querySelectorAll('canvas'));
+            for (const c of charts) {
+                try {
+                    const img = document.createElement('img');
+                    img.src = c.toDataURL('image/png');
+                    img.style.maxWidth = '100%';
+                    img.style.border = '1px solid #ddd';
+                    img.style.padding = '6px';
+                    container.appendChild(img);
+                } catch (e) {
+                    // ignorar
+                }
+            }
+
+            document.body.appendChild(container);
+            const opt = {
+                margin:       10,
+                filename:     `Relatorio_${new Date().toISOString().split('T')[0]}.pdf`,
+                image:        { type: 'jpeg', quality: 0.95 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'pt', format: 'a4', orientation: 'portrait' }
+            };
+
+            try {
+                await html2pdf().set(opt).from(container).save();
+            } catch (e) {
+                console.error('Erro ao gerar PDF:', e);
+                alert('Erro ao gerar PDF: ' + e.message);
+            } finally {
+                container.remove();
+            }
         }
     </script>
 </body>
