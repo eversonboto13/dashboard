@@ -1455,6 +1455,23 @@ Retorne APENAS o JSON válido, sem explicações, sem markdown, sem comentários
 
             // Tentar encurtar via endpoint /api/shorten (se implantado)
             (async () => {
+                // 1) Tentar is.gd (puro cliente) — simples e sem servidor
+                try {
+                    const isgd = 'https://is.gd/create.php?format=simple&url=' + encodeURIComponent(fullShareUrl);
+                    const r = await fetch(isgd);
+                    if (r.ok) {
+                        const short = (await r.text()).trim();
+                        if (short && short.startsWith('http')) {
+                            await navigator.clipboard.writeText(short);
+                            alert(`✅ Link curto (is.gd) copiado!\n\n${short}`);
+                            return;
+                        }
+                    }
+                } catch (e) {
+                    // continuar para o próximo fallback
+                }
+
+                // 2) Tentar endpoint /api/shorten (se implantado)
                 try {
                     const resp = await fetch('/api/shorten', {
                         method: 'POST',
@@ -1465,15 +1482,15 @@ Retorne APENAS o JSON válido, sem explicações, sem markdown, sem comentários
                         const j = await resp.json();
                         if (j.shortUrl && j.shortUrl.length <= 50) {
                             await navigator.clipboard.writeText(j.shortUrl);
-                            alert(`✅ Link curto copiado!\n\n${j.shortUrl}\n\n(Original: ${tamanhoOriginal} → ${tamanhoFinal} chars)`);
+                            alert(`✅ Link curto copiado!\n\n${j.shortUrl}`);
                             return;
                         }
                     }
                 } catch (e) {
-                    // ignore and fallback
+                    // ignore
                 }
 
-                // Fallback: copiar o fullShareUrl (portável)
+                // 3) Fallback final: copiar o fullShareUrl
                 try {
                     await navigator.clipboard.writeText(fullShareUrl);
                     alert(`✅ Link copiado (completo)!\n\n📊 ${fullShareUrl.substring(0, 80)}...\n📦 ${tamanhoOriginal} → ${tamanhoFinal} caracteres (${reducao}% menor)\n🔗 Qualquer pessoa pode visualizar`);
