@@ -1,0 +1,24 @@
+# Sistema
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Node modules (se adicionar ferramentas locais)
+node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# VS Code
+.vscode/
+
+# Arquivos temporários
+*.tmp
+*.swp
+
+# Chaves e segredos (não commitar)
+*.env
+*.key
+secrets.json
