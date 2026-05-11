@@ -1057,6 +1057,22 @@ Retorne APENAS o JSON válido, sem explicações, sem markdown, sem comentários
                 }
 
                 populateDashboard();
+
+                // Debug: mostrar os dados finais antes de criar os charts
+                console.log('📣 Dados finais para gráficos:', {
+                    reelsTotal: dashboardData.reelsTotal,
+                    postsTotal: dashboardData.postsTotal,
+                    storiesTotal: dashboardData.storiesTotal,
+                    postsLength: dashboardData.posts.length
+                });
+
+                // Esperar o layout estabilizar (duplo requestAnimationFrame ajuda em casos de reflow)
+                await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+                if (typeof Chart === 'undefined') {
+                    console.error('Chart.js não está disponível no momento. Verifique se o script do Chart.js foi carregado.');
+                }
+
                 initCharts();
                 
                 alert(`✅ Análise concluída!\n\n📊 Dados extraídos:\n• Alcance: ${formatNumber(dashboardData.metrics.alcance)}\n• Posts identificados: ${dashboardData.posts.length}`);
@@ -1462,39 +1478,49 @@ Retorne APENAS o JSON válido, sem explicações, sem markdown, sem comentários
             }
 
             // Construir HTML read-only simples
-            const readOnlyHtml = `<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>Relatório (Somente Visualização)</title>
-  <style>body{font-family:Arial,Helvetica,sans-serif;padding:20px;color:#222} h1{font-size:20px} table{border-collapse:collapse;width:100%;margin-bottom:16px} th,td{border:1px solid #ddd;padding:8px} th{background:#f7f7f7}</style>
-</head>
-<body>
-  <h1>Relatório - Somente Visualização</h1>
-  <p>Gerado em: ${new Date().toLocaleString()}</p>
-  <h2>Métricas Principais</h2>
-  <table>
-    <tr><th>Métrica</th><th>Valor</th></tr>
-    <tr><td>Alcance</td><td>${dashboardData.metrics.alcance}</td></tr>
-    <tr><td>Impressões</td><td>${dashboardData.metrics.impressoes}</td></tr>
-    <tr><td>Engajamento</td><td>${dashboardData.metrics.engajamento}</td></tr>
-    <tr><td>Taxa de Engajamento %</td><td>${dashboardData.metrics.taxa}</td></tr>
-    <tr><td>Novos Seguidores</td><td>${dashboardData.metrics.seguidores}</td></tr>
-    <tr><td>Cliques em Links</td><td>${dashboardData.metrics.cliques}</td></tr>
-  </table>
+                        // Construir HTML sem template literals aninhados para evitar problemas de parsing
+                        var parts = [];
+                        parts.push('<!doctype html>');
+                        parts.push('<html><head><meta charset="utf-8" /><title>Relatório (Somente Visualização)</title>');
+                        parts.push('<style>body{font-family:Arial,Helvetica,sans-serif;padding:20px;color:#222} h1{font-size:20px} table{border-collapse:collapse;width:100%;margin-bottom:16px} th,td{border:1px solid #ddd;padding:8px} th{background:#f7f7f7}</style>');
+                        parts.push('</head><body>');
+                        parts.push('<h1>Relatório - Somente Visualização</h1>');
+                        parts.push('<p>Gerado em: ' + new Date().toLocaleString() + '</p>');
+                        parts.push('<h2>Métricas Principais</h2>');
+                        parts.push('<table><tr><th>Métrica</th><th>Valor</th></tr>');
+                        parts.push('<tr><td>Alcance</td><td>' + (dashboardData.metrics.alcance || 0) + '</td></tr>');
+                        parts.push('<tr><td>Impressões</td><td>' + (dashboardData.metrics.impressoes || 0) + '</td></tr>');
+                        parts.push('<tr><td>Engajamento</td><td>' + (dashboardData.metrics.engajamento || 0) + '</td></tr>');
+                        parts.push('<tr><td>Taxa de Engajamento %</td><td>' + (dashboardData.metrics.taxa || 0) + '</td></tr>');
+                        parts.push('<tr><td>Novos Seguidores</td><td>' + (dashboardData.metrics.seguidores || 0) + '</td></tr>');
+                        parts.push('<tr><td>Cliques em Links</td><td>' + (dashboardData.metrics.cliques || 0) + '</td></tr>');
+                        parts.push('</table>');
 
-  <h2>Posts Detalhados</h2>
-  <table>
-    <tr><th>#</th><th>Tipo</th><th>Legenda</th><th>Alcance</th><th>Engajamento</th><th>Taxa %</th></tr>
-    ${dashboardData.posts.map((p,i)=>`<tr><td>${i+1}</td><td>${(p.tipo||'')}</td><td>${(p.legenda||'').replace(/</g,'&lt;')}</td><td>${p.alcance||0}</td><td>${p.engajamento||0}</td><td>${p.taxa||0}</td></tr>`).join('')}
-  </table>
+                        parts.push('<h2>Posts Detalhados</h2>');
+                        parts.push('<table><tr><th>#</th><th>Tipo</th><th>Legenda</th><th>Alcance</th><th>Engajamento</th><th>Taxa %</th></tr>');
+                        for (var i = 0; i < dashboardData.posts.length; i++) {
+                                var p = dashboardData.posts[i] || {};
+                                var legenda = (p.legenda || '').replace(/</g, '&lt;');
+                                parts.push('<tr><td>' + (i+1) + '</td><td>' + (p.tipo || '') + '</td><td>' + legenda + '</td><td>' + (p.alcance || 0) + '</td><td>' + (p.engajamento || 0) + '</td><td>' + (p.taxa || 0) + '</td></tr>');
+                        }
+                        parts.push('</table>');
 
-  <h2>Gráficos</h2>
-  ${Object.entries(chartImages).map(([id,uri])=>uri?`<div style="margin-bottom:16px"><h3>${id}</h3><img src="${uri}" alt="${id}" style="max-width:100%;border:1px solid #ddd;padding:4px;background:#fff"/></div>`:`<div><h3>${id}</h3><p>Imagem não disponível</p></div>`).join('')}
+                        parts.push('<h2>Gráficos</h2>');
+                        for (var key in chartImages) {
+                                if (Object.prototype.hasOwnProperty.call(chartImages, key)) {
+                                        var uri = chartImages[key];
+                                        if (uri) {
+                                                parts.push('<div style="margin-bottom:16px"><h3>' + key + '</h3><img src="' + uri + '" alt="' + key + '" style="max-width:100%;border:1px solid #ddd;padding:4px;background:#fff"/></div>');
+                                        } else {
+                                                parts.push('<div><h3>' + key + '</h3><p>Imagem não disponível</p></div>');
+                                        }
+                                }
+                        }
 
-  <footer style="margin-top:24px;color:#666;font-size:12px">Relatório gerado pelo Insight Dash — versão somente visualização (read-only)</footer>
-</body>
-</html>`;
+                        parts.push('<footer style="margin-top:24px;color:#666;font-size:12px">Relatório gerado pelo Insight Dash — versão somente visualização (read-only)</footer>');
+                        parts.push('</body></html>');
+
+                        var readOnlyHtml = parts.join('');
 
             // Criar blob e baixar
             const blob = new Blob([readOnlyHtml], { type: 'text/html' });
@@ -1519,20 +1545,27 @@ Retorne APENAS o JSON válido, sem explicações, sem markdown, sem comentários
             const container = document.createElement('div');
             container.style.padding = '20px';
             container.style.fontFamily = 'Arial,Helvetica,sans-serif';
-            container.innerHTML = `
-                <h1>Relatório - Somente Visualização</h1>
-                <p>Gerado em: ${new Date().toLocaleString()}</p>
-                <h2>Métricas Principais</h2>
-                <table style="border-collapse:collapse;width:100%;margin-bottom:16px">${
-                    ['Alcance','Impressões','Engajamento','Taxa de Engajamento %','Novos Seguidores','Cliques em Links']
-                    .map((k,i)=>`<tr><th style="border:1px solid #ddd;padding:8px;text-align:left;background:#f7f7f7">${k}</th><td style="border:1px solid #ddd;padding:8px">${[dashboardData.metrics.alcance,dashboardData.metrics.impressoes,dashboardData.metrics.engajamento,dashboardData.metrics.taxa,dashboardData.metrics.seguidores,dashboardData.metrics.cliques][i]}</td></tr>`).join('')
-                }</table>
-                <h2>Posts Detalhados</h2>
-                <table style="border-collapse:collapse;width:100%;margin-bottom:16px"><tr><th style="border:1px solid #ddd;padding:8px;background:#f7f7f7">#</th><th style="border:1px solid #ddd;padding:8px;background:#f7f7f7">Tipo</th><th style="border:1px solid #ddd;padding:8px;background:#f7f7f7">Legenda</th><th style="border:1px solid #ddd;padding:8px;background:#f7f7f7">Alcance</th><th style="border:1px solid #ddd;padding:8px;background:#f7f7f7">Engajamento</th><th style="border:1px solid #ddd;padding:8px;background:#f7f7f7">Taxa %</th></tr>
-                    ${dashboardData.posts.map((p,i)=>`<tr><td style="border:1px solid #ddd;padding:6px">${i+1}</td><td style="border:1px solid #ddd;padding:6px">${p.tipo||''}</td><td style="border:1px solid #ddd;padding:6px">${(p.legenda||'').replace(/</g,'&lt;')}</td><td style="border:1px solid #ddd;padding:6px">${p.alcance||0}</td><td style="border:1px solid #ddd;padding:6px">${p.engajamento||0}</td><td style="border:1px solid #ddd;padding:6px">${p.taxa||0}</td></tr>`).join('')}
-                </table>
-                <h2>Gráficos</h2>
-            `;
+            // montar a seção de métricas e posts de forma segura
+            var rows = [];
+            rows.push('<h1>Relatório - Somente Visualização</h1>');
+            rows.push('<p>Gerado em: ' + new Date().toLocaleString() + '</p>');
+            rows.push('<h2>Métricas Principais</h2>');
+            rows.push('<table style="border-collapse:collapse;width:100%;margin-bottom:16px">');
+            var keys = ['Alcance','Impressões','Engajamento','Taxa de Engajamento %','Novos Seguidores','Cliques em Links'];
+            var vals = [dashboardData.metrics.alcance,dashboardData.metrics.impressoes,dashboardData.metrics.engajamento,dashboardData.metrics.taxa,dashboardData.metrics.seguidores,dashboardData.metrics.cliques];
+            for (var ki = 0; ki < keys.length; ki++) {
+                rows.push('<tr><th style="border:1px solid #ddd;padding:8px;text-align:left;background:#f7f7f7">' + keys[ki] + '</th><td style="border:1px solid #ddd;padding:8px">' + (vals[ki] || 0) + '</td></tr>');
+            }
+            rows.push('</table>');
+            rows.push('<h2>Posts Detalhados</h2>');
+            rows.push('<table style="border-collapse:collapse;width:100%;margin-bottom:16px"><tr><th style="border:1px solid #ddd;padding:8px;background:#f7f7f7">#</th><th style="border:1px solid #ddd;padding:8px;background:#f7f7f7">Tipo</th><th style="border:1px solid #ddd;padding:8px;background:#f7f7f7">Legenda</th><th style="border:1px solid #ddd;padding:8px;background:#f7f7f7">Alcance</th><th style="border:1px solid #ddd;padding:8px;background:#f7f7f7">Engajamento</th><th style="border:1px solid #ddd;padding:8px;background:#f7f7f7">Taxa %</th></tr>');
+            for (var pi = 0; pi < dashboardData.posts.length; pi++) {
+                var pp = dashboardData.posts[pi] || {};
+                rows.push('<tr><td style="border:1px solid #ddd;padding:6px">' + (pi+1) + '</td><td style="border:1px solid #ddd;padding:6px">' + (pp.tipo||'') + '</td><td style="border:1px solid #ddd;padding:6px">' + ((pp.legenda||'').replace(/</g,'&lt;')) + '</td><td style="border:1px solid #ddd;padding:6px">' + (pp.alcance||0) + '</td><td style="border:1px solid #ddd;padding:6px">' + (pp.engajamento||0) + '</td><td style="border:1px solid #ddd;padding:6px">' + (pp.taxa||0) + '</td></tr>');
+            }
+            rows.push('</table>');
+            rows.push('<h2>Gráficos</h2>');
+            container.innerHTML = rows.join('');
 
             // Anexar imagens dos charts
             const charts = Array.from(document.querySelectorAll('canvas'));
