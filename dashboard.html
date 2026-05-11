@@ -578,6 +578,25 @@
             const elRose = document.getElementById('chartDoughnut');
             const elComparison = document.getElementById('chartComparison');
             const elEngagement = document.getElementById('chartEngagement');
+
+            // Se os canvases ainda não tiverem dimensões (por exemplo, initCharts foi chamado enquanto
+            // o layout ainda estava sendo calculado ou a aba estava oculta), re-tentar algumas vezes.
+            const canvases = [elBar, elRose, elComparison, elEngagement].filter(Boolean);
+            const anyZero = canvases.some(c => (c.width === 0 || c.height === 0 || c.getBoundingClientRect().width === 0));
+            if (anyZero) {
+                initCharts._retryCount = initCharts._retryCount || 0;
+                if (initCharts._retryCount < 5) {
+                    initCharts._retryCount++;
+                    console.log(`initCharts: canvases ainda com dimensão 0, retry ${initCharts._retryCount}/5 em 300ms`);
+                    setTimeout(() => initCharts(), 300);
+                    return;
+                } else {
+                    // reset counter e continuar (já tentamos algumas vezes)
+                    initCharts._retryCount = 0;
+                }
+            } else {
+                initCharts._retryCount = 0;
+            }
             const ctxBar = (elBar && elBar.getContext) ? elBar.getContext('2d') : null;
             const ctxRose = (elRose && elRose.getContext) ? elRose.getContext('2d') : null;
             const ctxComparison = (elComparison && elComparison.getContext) ? elComparison.getContext('2d') : null;
