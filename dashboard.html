@@ -655,11 +655,19 @@
                 calcTotal(postsImagem, 'alcance')
             ] : [reelsTotal, postsTotal, storiesTotal];
             
-            const engagementByType = hasPostData ? [
+            let engagementByType = hasPostData ? [
                 calcAvg(postsReels, 'taxa'),
                 calcAvg(postsCarousel, 'taxa'),
                 calcAvg(postsImagem, 'taxa')
             ] : [0, 0, 0];
+
+            // Converter (0..1) para percentuais (0..100) se necessário
+            try {
+                const maxEng = Math.max(...engagementByType.map(v => Number(v) || 0));
+                if (maxEng > 0 && maxEng <= 1) {
+                    engagementByType = engagementByType.map(v => (Number(v) || 0) * 100);
+                }
+            } catch (e) {}
 
             // Gráfico Comparativo de Alcance (Reels vs Carrossel vs Imagem)
             if (ctxComparison) {
@@ -708,10 +716,13 @@
                     responsive: true, 
                     maintainAspectRatio: false,
                     scales: {
-                        y: { beginAtZero: true }
+                        y: { beginAtZero: true, suggestedMax: Math.max(10, Math.ceil((Math.max(...engagementByType.map(v=>Number(v)||0))||0) * 1.15)),
+                            ticks: { callback: function(value){ return (value >= 1000 ? String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ",") : value) + '%'; } }
+                        }
                     }
                 }
             });
+                try { chartEngagementInstance.update(); chartEngagementInstance.resize(); } catch(e){}
         }
 
         // ✅ FUNÇÃO PARA ALTERNAR ENTRE APIS
