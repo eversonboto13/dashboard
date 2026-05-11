@@ -663,15 +663,63 @@
             });
         }
 
-        // Carregar dados da URL
-        document.addEventListener('DOMContentLoaded', () => {
-            const hash = window.location.hash.slice(1);
-            if (hash) {
-                const data = decompressData(hash);
-                if (data) {
-                    renderReport(data);
+        // LZString decompressor mínimo (compatível com dashboard.html)
+        var LZString = (function() {
+            var f = String.fromCharCode;
+            var keyStrUriSafe = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$";
+            function decompressFromEncodedURIComponent(input) {
+                if (!input) return null;
+                try {
+                    var compressed = "";
+                    for (var i = 0; i < input.length; i += 2) {
+                        var c1 = keyStrUriSafe.indexOf(input.charAt(i));
+                        var c2 = keyStrUriSafe.indexOf(input.charAt(i + 1));
+                        compressed += String.fromCharCode((c1 << 6) | c2);
+                    }
+                    // Use lzwDecompress to decode
+                    return lzwDecompress(compressed);
+                } catch (e) {
+                    return null;
                 }
             }
+            return { decompressFromEncodedURIComponent: decompressFromEncodedURIComponent };
+        })();
+
+        // Carregar dados da URL ou do localStorage (formato 'share-<timestamp>')
+        document.addEventListener('DOMContentLoaded', () => {
+            const hash = window.location.hash.slice(1);
+            if (!hash) return;
+
+            if (hash.startsWith('share-')) {
+                // Tentar recuperar do localStorage (deve ser aberto no mesmo navegador onde foi gerado)
+                const stored = localStorage.getItem(hash);
+                if (stored) {
+                    // stored é o payload compactado (LZString)
+                    try {
+                        const jsonString = LZString.decompressFromEncodedURIComponent(stored);
+                        if (jsonString) {
+                            const data = JSON.parse(jsonString);
+                            renderReport(data);
+                            return;
+                        }
+                    } catch (e) {
+                        console.error('Erro ao descompactar LZString do localStorage:', e);
+                    }
+                }
+                // Se não encontrou, informar usuário
+                document.getElementById('reportContent').innerHTML = `
+                    <div class="no-data">
+                        <div class="no-data-icon">⚠️</div>
+                        <h2>Relatório não encontrado</h2>
+                        <p>O link foi gerado neste navegador, mas o relatório não está disponível aqui. Para compartilhar com outras pessoas, use a opção de encurtador ou copie o link completo (com o hash grande) e envie diretamente.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Fallback: tentar descompactar diretamente (formato antigo LZW/base64)
+            const data = decompressData(hash);
+            if (data) renderReport(data);
         });
     </script>
 </body>

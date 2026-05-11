@@ -1436,7 +1436,15 @@ Retorne APENAS o JSON válido, sem explicações, sem markdown, sem comentários
                 baseUrl = currentUrl.replace('dashboard.html', 'report-view.html');
             }
 
-            const shareUrl = `${baseUrl}#${dadosCompactados}`;
+            // Salvar payload compactado no localStorage com chave curta baseada na data/hora
+            const timestampKey = 'share-' + new Date().toISOString().replace(/[:.]/g, '-');
+            try {
+                localStorage.setItem(timestampKey, dadosCompactados);
+            } catch (e) {
+                console.warn('Não foi possível salvar no localStorage:', e);
+            }
+
+            const shareUrl = `${baseUrl}#${timestampKey}`;
 
             // Mostrar tamanho do link
             const tamanhoOriginal = JSON.stringify(dadosCompartilhamento).length;
