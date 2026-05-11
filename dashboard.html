@@ -589,7 +589,10 @@
                     labels: ['Reels', 'Posts', 'Stories'],
                     datasets: [{
                         data: [reelsTotal, postsTotal, storiesTotal],
-                        backgroundColor: ['#E4405F','#F58529','#FCAF45'],
+                        // usar cores com alpha para garantir preenchimento visível
+                        backgroundColor: ['rgba(228,64,95,0.85)','rgba(245,133,41,0.85)','rgba(252,175,69,0.85)'],
+                        borderColor: ['#E4405F','#F58529','#FCAF45'],
+                        borderWidth: 0,
                         borderRadius: 8
                     }]
                 },
@@ -610,8 +613,9 @@
                     labels: ['Reels', 'Carrossel', 'Imagem'],
                     datasets: [{ 
                         data: [postsByType.reels, postsByType.carousel, postsByType.imagem], 
-                        backgroundColor: ['#E4405F','#F58529','#4285F4'], 
-                        borderWidth: 0 
+                        backgroundColor: ['rgba(228,64,95,0.85)','rgba(245,133,41,0.85)','rgba(66,133,244,0.85)'], 
+                        borderColor: ['#fff','#fff','#fff'],
+                        borderWidth: 1 
                     }]
                 },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
@@ -648,7 +652,9 @@
                     datasets: [{
                         label: 'Alcance',
                         data: alcanceByType,
-                        backgroundColor: ['#E4405F', '#F58529', '#4285F4'],
+                        backgroundColor: ['rgba(228,64,95,0.75)', 'rgba(245,133,41,0.75)', 'rgba(66,133,244,0.75)'],
+                        borderColor: ['#E4405F', '#F58529', '#4285F4'],
+                        borderWidth: 0,
                         borderRadius: 8
                     }]
                 },

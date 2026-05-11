@@ -1,0 +1,2445 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Instagram - Analytics</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        :root {
+            --ig-gradient: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+            --ig-pink: #E1306C;
+            --ig-orange: #F77737;
+            --ig-yellow: #FCAF45;
+            --ig-purple: #833AB4;
+            --text-primary: #262626;
+            --text-secondary: #8e8e8e;
+            --border: #dbdbdb;
+            --bg-light: #fafafa;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: #ffffff;
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        .header {
+            background: var(--ig-gradient);
+            color: white;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 { font-size: 24px; font-weight: 600; }
+        .api-section { display: flex; gap: 15px; align-items: center; }
+        .api-section select, .api-section input {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; padding: 30px 40px; }
+        .upload-section {
+            background: var(--bg-light);
+            border: 2px dashed var(--ig-pink);
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .upload-btn {
+            background: var(--ig-gradient);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 30px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(225, 48, 108, 0.3);
+        }
+        .file-input { display: none; }
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .metric-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .metric-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.1);
+        }
+        .metric-icon {
+            width: 48px; height: 48px;
+            background: var(--ig-gradient);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 12px;
+            color: white;
+            font-size: 24px;
+        }
+        .metric-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        .metric-value {
+            font-size: 32px;
+            font-weight: 700;
+            background: var(--ig-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .metric-change { font-size: 13px; margin-top: 8px; font-weight: 600; }
+        .positive { color: #00b894; }
+        .negative { color: #ff7675; }
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 24px;
+            background: var(--ig-gradient);
+            border-radius: 2px;
+        }
+        .charts-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        .chart-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+        }
+        .chart-container { position: relative; height: 300px; }
+        .content-tables {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        .table-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            overflow: hidden;
+        }
+        .table-card h3 { font-size: 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .top-posts h3 { color: #00b894; }
+        .worst-posts h3 { color: #ff7675; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { font-weight: 600; color: var(--text-secondary); font-size: 12px; text-transform: uppercase; }
+        .post-preview { display: flex; align-items: center; gap: 12px; }
+        .post-thumb {
+            width: 40px; height: 40px;
+            background: var(--bg-light);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        .post-type { font-size: 12px; color: var(--text-secondary); }
+        .engagement-bar { display: flex; align-items: center; gap: 8px; }
+        .bar {
+            height: 6px;
+            background: var(--ig-gradient);
+            border-radius: 3px;
+            min-width: 20px;
+        }
+        .format-performance {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .format-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+        }
+        .format-icon { font-size: 40px; margin-bottom: 12px; }
+        .format-name { font-weight: 600; margin-bottom: 8px; }
+        .format-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 16px;
+        }
+        .stat {
+            background: var(--bg-light);
+            padding: 12px;
+            border-radius: 8px;
+        }
+        .stat-label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; }
+        .stat-value { font-size: 18px; font-weight: 700; margin-top: 4px; }
+        .export-section { display: flex; justify-content: flex-end; margin-top: 20px; }
+        .export-btn {
+            background: white;
+            border: 2px solid var(--ig-pink);
+            color: var(--ig-pink);
+            padding: 12px 30px;
+            border-radius: 30px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .export-btn:hover {
+            background: var(--ig-gradient);
+            color: white;
+            border-color: transparent;
+        }
+        .loading { display: none; text-align: center; padding: 40px; }
+        .loading.active { display: block; }
+        .spinner {
+            width: 50px; height: 50px;
+            border: 4px solid var(--border);
+            border-top-color: var(--ig-pink);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .preview-images { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 20px; }
+        .preview-img {
+            width: 80px; height: 80px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 2px solid var(--border);
+        }
+        .hidden { display: none !important; }
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal h3 { margin-bottom: 20px; font-size: 20px; }
+        .modal-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+        .modal-buttons { display: flex; gap: 12px; justify-content: flex-end; }
+        .modal-btn {
+            padding: 10px 24px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .modal-btn-primary { background: var(--ig-gradient); color: white; }
+        .modal-btn-secondary { background: var(--bg-light); color: var(--text-primary); }
+        .saved-list { max-height: 300px; overflow-y: auto; margin-bottom: 20px; }
+        .saved-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .saved-item:hover { border-color: var(--ig-pink); background: var(--bg-light); }
+        .saved-item.selected { border-color: var(--ig-pink); background: rgba(225, 48, 108, 0.1); }
+        .saved-info { flex: 1; }
+        .saved-name { font-weight: 600; margin-bottom: 4px; }
+        .saved-date { font-size: 12px; color: var(--text-secondary); }
+        .saved-actions { display: flex; gap: 8px; }
+        .saved-btn { padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; font-size: 12px; }
+        .saved-btn-load { background: var(--ig-gradient); color: white; }
+        .saved-btn-delete { background: #ff7675; color: white; }
+        .progress-container { margin: 20px 0; }
+        .progress-bar {
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+        .progress-fill {
+            height: 100%;
+            background: var(--ig-gradient);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .progress-text { text-align: center; color: var(--text-secondary); font-size: 14px; }
+        .action-buttons { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+        .action-btn {
+            padding: 12px 24px;
+            border-radius: 30px;
+            border: 2px solid var(--ig-pink);
+            background: white;
+            color: var(--ig-pink);
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .action-btn:hover { background: var(--ig-gradient); color: white; border-color: transparent; }
+        .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .growth-positive { color: #00b894; }
+        .growth-negative { color: #ff7675; }
+        .comparison-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .comparison-card {
+            background: var(--bg-light);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+        }
+        .comparison-card .label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 4px; }
+        .comparison-card .value { font-size: 18px; font-weight: 700; }
+        .comparison-card .change { font-size: 13px; font-weight: 600; margin-top: 4px; }
+        .comparison-card .change.positive { color: #00b894; }
+        .comparison-card .change.negative { color: #ff7675; }
+        .rename-input-group { display: flex; gap: 10px; align-items: center; margin-bottom: 20px; }
+        .rename-input-group input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        .rename-input-group button {
+            padding: 12px 20px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            background: var(--ig-gradient);
+            color: white;
+            white-space: nowrap;
+        }
+        @media (max-width: 768px) {
+            .content-tables { grid-template-columns: 1fr; }
+            .format-performance { grid-template-columns: 1fr; }
+            .charts-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>📊 Dashboard Instagram Analytics</h1>
+        <div class="api-section">
+            <select id="apiProvider">
+                <option value="groq">Groq (Llama Vision)</option>
+                <option value="gemini">Gemini (Google)</option>
+                <option value="deepseek">DeepSeek Vision</option>
+                <option value="deepseek-v4-flash">DeepSeek-V4-Flash</option>
+                <option value="deepseek-v4-pro">DeepSeek-V4-Pro</option>
+                <option value="openai">OpenAI (GPT-4o Mini)</option>
+                <option value="openrouter">OpenRouter (Llama Vision)</option>
+            </select>
+            <input type="password" id="apiKey" placeholder="Chave de API">
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="upload-section">
+            <h2 style="margin-bottom: 16px;">Análise de Prints com IA</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 24px;">
+                Envie prints do Instagram Insights e deixe a IA extrair os dados automaticamente
+            </p>
+            <button class="upload-btn" onclick="document.getElementById('fileInput').click()">📸 Selecionar Prints</button>
+            <input type="file" id="fileInput" class="file-input" multiple accept="image/*">
+            <div class="preview-images" id="previewImages"></div>
+            <button class="upload-btn" id="processBtn" style="margin-top: 20px; display: none;" onclick="processImages()">🤖 Processar com IA</button>
+        </div>
+
+        <div class="loading" id="loadingSection">
+            <div class="spinner"></div>
+            <p id="loadingText">Analisando prints e extraindo métricas...</p>
+        </div>
+
+        <div id="dashboardContent">
+            <div class="action-buttons">
+                <button class="action-btn" onclick="openSaveModal()" id="saveBtn">💾 Salvar Dados Atuais</button>
+                <button class="action-btn" onclick="openCompareModal()" id="compareBtn">📊 Comparar com Anterior</button>
+                <button class="action-btn" onclick="openSavedDataModal()" id="savedDataBtn">📁 Dados Salvos</button>
+                <button class="action-btn" onclick="openEditModal()" id="editBtn">✏️ Editar Dados</button>
+                <button class="action-btn" onclick="toggleDebugPanel()" id="debugBtn">🔍 Debug IA</button>
+            </div>
+
+            <!-- Debug Panel -->
+            <div id="debugPanel" class="hidden" style="background: #1e1e1e; color: #d4d4d4; border-radius: 12px; padding: 20px; margin-bottom: 20px; font-family: 'Consolas', 'Courier New', monospace; font-size: 13px; max-height: 500px; overflow-y: auto;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h3 style="color: #569cd6; margin: 0;">🔍 Debug - Dados Extraídos pela IA</h3>
+                    <button onclick="toggleDebugPanel()" style="background: none; border: 1px solid #666; color: #ccc; padding: 4px 12px; border-radius: 4px; cursor: pointer;">Fechar</button>
+                </div>
+                <div id="debugContent">
+                    <p style="color: #888;">Nenhum dado de debug disponível. Processe imagens para ver os dados brutos extraídos.</p>
+                </div>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-icon">👁️</div>
+                    <div class="metric-label">Alcance</div>
+                    <div class="metric-value" id="alcance">0</div>
+                    <div class="metric-change positive" id="alcanceChange">+0%</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon">📈</div>
+                    <div class="metric-label">Impressões</div>
+                    <div class="metric-value" id="impressoes">0</div>
+                    <div class="metric-change positive" id="impressoesChange">+0%</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon">❤️</div>
+                    <div class="metric-label">Engajamento Total</div>
+                    <div class="metric-value" id="engajamento">0</div>
+                    <div class="metric-change positive" id="engajamentoChange">+0%</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon">📊</div>
+                    <div class="metric-label">Taxa de Engajamento</div>
+                    <div class="metric-value" id="taxaEngajamento">0%</div>
+                    <div class="metric-change positive" id="taxaChange">+0%</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon">👥</div>
+                    <div class="metric-label">Crescimento de Seguidores</div>
+                    <div class="metric-value" id="seguidores">0</div>
+                    <div class="metric-change positive" id="seguidoresChange">+0%</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon">🔗</div>
+                    <div class="metric-label">Cliques em Links</div>
+                    <div class="metric-value" id="cliques">0</div>
+                    <div class="metric-change positive" id="cliquesChange">+0%</div>
+                </div>
+            </div>
+
+            <h2 class="section-title">Comparativo de Formatos</h2>
+            <div class="charts-row">
+                <div class="chart-card">
+                    <h3 style="margin-bottom: 16px;">Reels vs Posts vs Stories</h3>
+                    <div class="chart-container"><canvas id="comparisonChart"></canvas></div>
+                </div>
+                <div class="chart-card">
+                    <h3 style="margin-bottom: 16px;">Distribuição de Alcance</h3>
+                    <div class="chart-container"><canvas id="distributionChart"></canvas></div>
+                </div>
+            </div>
+
+            <div id="growthSection" class="hidden">
+                <h2 class="section-title">📈 Crescimento vs Dados Anteriores</h2>
+                <div class="comparison-summary" id="comparisonSummary"></div>
+                <div class="charts-row">
+                    <div class="chart-card">
+                        <h3 style="margin-bottom: 16px;">Comparativo de Métricas</h3>
+                        <div class="chart-container"><canvas id="growthChart"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <h3 style="margin-bottom: 16px;">Variação Percentual</h3>
+                        <div class="chart-container"><canvas id="variationChart"></canvas></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Extra Data Section -->
+            <div id="extraDataSection" class="hidden">
+                <h2 class="section-title">📊 Dados Extras</h2>
+                <div class="charts-row">
+                    <div class="chart-card">
+                        <h3 style="margin-bottom: 16px;">👥 Público: Seguidores vs Não Seguidores</h3>
+                        <div class="chart-container">
+                            <canvas id="audienceChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3 style="margin-bottom: 16px;">📋 Informações Complementares</h3>
+                        <div id="extraDataCards" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; height: 100%; align-content: start;">
+                            <p style="color: var(--text-secondary); grid-column: 1/-1; text-align: center; padding: 40px 0;">
+                                Nenhum dado extra identificado. Processe as imagens para ver informações complementares.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h2 class="section-title">Performance por Formato</h2>
+            <div class="format-performance">
+                <div class="format-card">
+                    <div class="format-icon">🎬</div>
+                    <div class="format-name">Vídeo Curto (Reels)</div>
+                    <div class="format-stats">
+                        <div class="stat"><div class="stat-label">Alcance</div><div class="stat-value" id="reelsAlcance">0</div></div>
+                        <div class="stat"><div class="stat-label">Engajamento</div><div class="stat-value" id="reelsEngajamento">0%</div></div>
+                    </div>
+                </div>
+                <div class="format-card">
+                    <div class="format-icon">🎠</div>
+                    <div class="format-name">Carrossel</div>
+                    <div class="format-stats">
+                        <div class="stat"><div class="stat-label">Alcance</div><div class="stat-value" id="carouselAlcance">0</div></div>
+                        <div class="stat"><div class="stat-label">Engajamento</div><div class="stat-value" id="carouselEngajamento">0%</div></div>
+                    </div>
+                </div>
+                <div class="format-card">
+                    <div class="format-icon">🖼️</div>
+                    <div class="format-name">Imagem Estática</div>
+                    <div class="format-stats">
+                        <div class="stat"><div class="stat-label">Alcance</div><div class="stat-value" id="imagemAlcance">0</div></div>
+                        <div class="stat"><div class="stat-label">Engajamento</div><div class="stat-value" id="imagemEngajamento">0%</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <h2 class="section-title">Análise de Conteúdo</h2>
+            <div class="content-tables">
+                <div class="table-card top-posts">
+                    <h3>🏆 Top 10 Posts do Mês</h3>
+                    <table id="topPostsTable">
+                        <thead><tr><th>#</th><th>Post</th><th>Alcance</th><th>Engajamento</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="table-card worst-posts">
+                    <h3>📉 Piores 10 Posts do Mês</h3>
+                    <table id="worstPostsTable">
+                        <thead><tr><th>#</th><th>Post</th><th>Alcance</th><th>Engajamento</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="export-section">
+                <button class="export-btn" onclick="exportToExcel()">📥 Exportar Dados (Excel)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Data Modal -->
+    <div class="modal-overlay" id="editModal">
+        <div class="modal" style="max-width: 700px;">
+            <h3>✏️ Editar Dados Extraídos</h3>
+            <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                Corrija manualmente os dados que a IA extraiu. Os gráficos e tabelas serão atualizados automaticamente.
+            </p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">
+                <div>
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Alcance</label>
+                    <input type="number" id="editAlcance" class="modal-input" style="margin-bottom: 8px;">
+                </div>
+                <div>
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Impressões</label>
+                    <input type="number" id="editImpressoes" class="modal-input" style="margin-bottom: 8px;">
+                </div>
+                <div>
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Engajamento Total</label>
+                    <input type="number" id="editEngajamento" class="modal-input" style="margin-bottom: 8px;">
+                </div>
+                <div>
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Taxa de Engajamento (%)</label>
+                    <input type="number" step="0.01" id="editTaxa" class="modal-input" style="margin-bottom: 8px;">
+                </div>
+                <div>
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Seguidores</label>
+                    <input type="number" id="editSeguidores" class="modal-input" style="margin-bottom: 8px;">
+                </div>
+                <div>
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Cliques em Links</label>
+                    <input type="number" id="editCliques" class="modal-input" style="margin-bottom: 8px;">
+                </div>
+            </div>
+            <h4 style="margin-bottom: 12px; font-size: 14px; color: var(--text-primary);">👥 Público (Seguidores vs Não Seguidores)</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">
+                <div>
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Alcance Seguidores</label>
+                    <input type="number" id="editAudSeguidoresAlcance" class="modal-input" style="margin-bottom: 8px;">
+                </div>
+                <div>
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">% Seguidores</label>
+                    <input type="number" step="0.1" id="editAudSeguidoresPct" class="modal-input" style="margin-bottom: 8px;">
+                </div>
+                <div>
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Alcance Não Seguidores</label>
+                    <input type="number" id="editAudNaoSeguidoresAlcance" class="modal-input" style="margin-bottom: 8px;">
+                </div>
+                <div>
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">% Não Seguidores</label>
+                    <input type="number" step="0.1" id="editAudNaoSeguidoresPct" class="modal-input" style="margin-bottom: 8px;">
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn modal-btn-secondary" onclick="closeModal('editModal')">Cancelar</button>
+                <button class="modal-btn modal-btn-primary" onclick="confirmEdit()">✏️ Aplicar Correções</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save Modal -->
+    <div class="modal-overlay" id="saveModal">
+        <div class="modal">
+            <h3>💾 Salvar Dados Atuais</h3>
+            <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                Dê um nome para identificar este snapshot de dados. A data/hora atual será registrada automaticamente.
+            </p>
+            <div class="rename-input-group">
+                <input type="text" id="saveNameInput" placeholder="Ex: Análise Maio 2026" value="">
+                <button onclick="confirmSave()">Salvar</button>
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn modal-btn-secondary" onclick="closeModal('saveModal')">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Compare Modal -->
+    <div class="modal-overlay" id="compareModal">
+        <div class="modal">
+            <h3>📊 Comparar com Dados Anteriores</h3>
+            <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                Selecione um snapshot salvo anteriormente para comparar com os dados atuais.
+            </p>
+            <div class="saved-list" id="compareSavedList"></div>
+            <div class="modal-buttons">
+                <button class="modal-btn modal-btn-secondary" onclick="closeModal('compareModal')">Cancelar</button>
+                <button class="modal-btn modal-btn-primary" onclick="confirmCompare()" id="confirmCompareBtn" disabled>Comparar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Saved Data Modal -->
+    <div class="modal-overlay" id="savedDataModal">
+        <div class="modal">
+            <h3>📁 Dados Salvos</h3>
+            <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                Gerencie seus snapshots salvos. Clique em "Carregar" para visualizar dados antigos.
+            </p>
+            <div class="saved-list" id="savedDataList"></div>
+            <div class="modal-buttons">
+                <button class="modal-btn modal-btn-secondary" onclick="closeModal('savedDataModal')">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // GLOBAL DATA
+        // ==========================================
+        let dashboardData = {
+            metrics: { alcance: 0, impressoes: 0, engajamento: 0, taxaEngajamento: 0, seguidores: 0, cliques: 0 },
+            comparison: {
+                reels: { alcance: 0, engajamento: 0, posts: 0 },
+                posts: { alcance: 0, engajamento: 0, posts: 0 },
+                stories: { alcance: 0, engajamento: 0, posts: 0 }
+            },
+            audience: {
+                seguidores: { alcance: 0, porcentagem: 0 },
+                naoSeguidores: { alcance: 0, porcentagem: 0 }
+            },
+            extraData: [],
+            posts: [],
+            topPosts: [],
+            worstPosts: []
+        };
+
+        let comparisonChart, distributionChart, growthChart, variationChart;
+        let selectedFiles = [];
+        let compareTargetId = null;
+        let lastDebugData = null;
+
+        // ==========================================
+        // DEBUG PANEL
+        // ==========================================
+
+        function toggleDebugPanel() {
+            var panel = document.getElementById('debugPanel');
+            panel.classList.toggle('hidden');
+            if (!panel.classList.contains('hidden') && lastDebugData) {
+                renderDebugPanel();
+            }
+        }
+
+        function renderDebugPanel() {
+            var container = document.getElementById('debugContent');
+            if (!lastDebugData) {
+                container.innerHTML = '<p style="color: #888;">Nenhum dado de debug disponível. Processe imagens para ver os dados brutos extraídos.</p>';
+                return;
+            }
+
+            var html = '';
+
+            // Resultados individuais por imagem
+            if (lastDebugData.individualResults && lastDebugData.individualResults.length > 0) {
+                html += '<div style="margin-bottom: 16px;">';
+                html += '<h4 style="color: #ce9178; margin-bottom: 8px;">📸 Resultados Individuais por Imagem:</h4>';
+                lastDebugData.individualResults.forEach(function(item, idx) {
+                    html += '<div style="background: #2d2d2d; border-radius: 6px; padding: 10px; margin-bottom: 8px;">';
+                    html += '<div style="color: #569cd6; font-weight: bold; margin-bottom: 6px;">Imagem ' + (idx + 1) + ':</div>';
+                    html += '<pre style="margin: 0; white-space: pre-wrap; word-break: break-word; color: #d4d4d4; font-size: 12px;">' + syntaxHighlightJSON(item) + '</pre>';
+                    html += '</div>';
+                });
+                html += '</div>';
+            }
+
+            // Dados mesclados
+            if (lastDebugData.mergedData) {
+                html += '<div style="margin-bottom: 16px;">';
+                html += '<h4 style="color: #ce9178; margin-bottom: 8px;">📊 Dados Mesclados (Final):</h4>';
+                html += '<div style="background: #2d2d2d; border-radius: 6px; padding: 10px;">';
+                html += '<pre style="margin: 0; white-space: pre-wrap; word-break: break-word; color: #d4d4d4; font-size: 12px;">' + syntaxHighlightJSON(lastDebugData.mergedData) + '</pre>';
+                html += '</div></div>';
+            }
+
+            // Aviso de dados zerados
+            if (lastDebugData.mergedData && lastDebugData.mergedData.metrics) {
+                var metrics = lastDebugData.mergedData.metrics;
+                var allZero = metrics.alcance === 0 && metrics.impressoes === 0 && metrics.engajamento === 0;
+                if (allZero) {
+                    html += '<div style="background: #3d1f1f; border: 1px solid #ff7675; border-radius: 6px; padding: 10px; margin-bottom: 8px;">';
+                    html += '<span style="color: #ff7675;">⚠️ ATENÇÃO: Todos os dados vieram zerados! A IA não conseguiu extrair as métricas.</span>';
+                    html += '</div>';
+                }
+            }
+
+            container.innerHTML = html;
+        }
+
+        function syntaxHighlightJSON(obj) {
+            var json = JSON.stringify(obj, null, 2);
+            // Escape HTML
+            json = json.replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>');
+            // Highlight keys
+            json = json.replace(/"([^"]+)":/g, '<span style="color: #9cdcfe;">"$1"</span>:');
+            // Highlight string values
+            json = json.replace(/: "([^"]+)"/g, ': <span style="color: #ce9178;">"$1"</span>');
+            // Highlight number values
+            json = json.replace(/: (\d+\.?\d*)/g, ': <span style="color: #b5cea8;">$1</span>');
+            // Highlight booleans and null
+            json = json.replace(/: (true|false|null)/g, ': <span style="color: #569cd6;">$1</span>');
+            return json;
+        }
+
+        // ==========================================
+        // LOCAL STORAGE - Save/Load Management
+        // ==========================================
+
+        function getSavedDataList() {
+            try {
+                const raw = localStorage.getItem('instagramDashboardSnapshots');
+                return raw ? JSON.parse(raw) : [];
+            } catch (e) { return []; }
+        }
+
+        function saveSnapshot(name) {
+            const snapshots = getSavedDataList();
+            const now = new Date();
+            const dateStr = now.toLocaleString('pt-BR', {
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+            const snapshot = {
+                id: Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
+                name: name || 'Snapshot ' + dateStr,
+                date: now.toISOString(),
+                dateFormatted: dateStr,
+                data: JSON.parse(JSON.stringify(dashboardData))
+            };
+            snapshots.push(snapshot);
+            localStorage.setItem('instagramDashboardSnapshots', JSON.stringify(snapshots));
+            return snapshot;
+        }
+
+        function deleteSnapshot(id) {
+            let snapshots = getSavedDataList();
+            snapshots = snapshots.filter(s => s.id !== id);
+            localStorage.setItem('instagramDashboardSnapshots', JSON.stringify(snapshots));
+        }
+
+        function loadSnapshot(id) {
+            const snapshots = getSavedDataList();
+            return snapshots.find(s => s.id === id) || null;
+        }
+
+        // ==========================================
+        // MODAL HELPERS
+        // ==========================================
+
+        function openModal(id) { document.getElementById(id).classList.add('active'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+        document.querySelectorAll('.modal-overlay').forEach(el => {
+            el.addEventListener('click', function(e) {
+                if (e.target === this) this.classList.remove('active');
+            });
+        });
+
+        // ==========================================
+        // SAVE MODAL
+        // ==========================================
+
+        function openSaveModal() {
+            const now = new Date();
+            const months = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+            document.getElementById('saveNameInput').value = 'Análise ' + months[now.getMonth()] + ' ' + now.getFullYear();
+            openModal('saveModal');
+        }
+
+        function confirmSave() {
+            const nameInput = document.getElementById('saveNameInput');
+            let name = nameInput.value.trim();
+            if (!name) {
+                const now = new Date();
+                name = 'Snapshot ' + now.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+            }
+            const snapshot = saveSnapshot(name);
+            closeModal('saveModal');
+            alert('✅ Dados salvos com sucesso!\n\nNome: ' + snapshot.name + '\nData: ' + snapshot.dateFormatted);
+        }
+
+        // ==========================================
+        // EDIT MODAL
+        // ==========================================
+
+        function openEditModal() {
+            // Preencher campos com valores atuais
+            document.getElementById('editAlcance').value = dashboardData.metrics.alcance || 0;
+            document.getElementById('editImpressoes').value = dashboardData.metrics.impressoes || 0;
+            document.getElementById('editEngajamento').value = dashboardData.metrics.engajamento || 0;
+            document.getElementById('editTaxa').value = dashboardData.metrics.taxaEngajamento || 0;
+            document.getElementById('editSeguidores').value = dashboardData.metrics.seguidores || 0;
+            document.getElementById('editCliques').value = dashboardData.metrics.cliques || 0;
+
+            // Preencher campos de audiência
+            if (dashboardData.audience) {
+                document.getElementById('editAudSeguidoresAlcance').value = dashboardData.audience.seguidores?.alcance || 0;
+                document.getElementById('editAudSeguidoresPct').value = dashboardData.audience.seguidores?.porcentagem || 0;
+                document.getElementById('editAudNaoSeguidoresAlcance').value = dashboardData.audience.naoSeguidores?.alcance || 0;
+                document.getElementById('editAudNaoSeguidoresPct').value = dashboardData.audience.naoSeguidores?.porcentagem || 0;
+            }
+            openModal('editModal');
+        }
+
+        function confirmEdit() {
+            // Ler valores dos campos
+            var alcance = parseFloat(document.getElementById('editAlcance').value) || 0;
+            var impressoes = parseFloat(document.getElementById('editImpressoes').value) || 0;
+            var engajamento = parseFloat(document.getElementById('editEngajamento').value) || 0;
+            var taxa = parseFloat(document.getElementById('editTaxa').value) || 0;
+            var seguidores = parseFloat(document.getElementById('editSeguidores').value) || 0;
+            var cliques = parseFloat(document.getElementById('editCliques').value) || 0;
+
+            // Ler campos de audiência
+            var audSegAlc = parseFloat(document.getElementById('editAudSeguidoresAlcance').value) || 0;
+            var audSegPct = parseFloat(document.getElementById('editAudSeguidoresPct').value) || 0;
+            var audNaoSegAlc = parseFloat(document.getElementById('editAudNaoSeguidoresAlcance').value) || 0;
+            var audNaoSegPct = parseFloat(document.getElementById('editAudNaoSeguidoresPct').value) || 0;
+
+            // Atualizar dados
+            dashboardData.metrics.alcance = alcance;
+            dashboardData.metrics.impressoes = impressoes;
+            dashboardData.metrics.engajamento = engajamento;
+            dashboardData.metrics.taxaEngajamento = taxa;
+            dashboardData.metrics.seguidores = seguidores;
+            dashboardData.metrics.cliques = cliques;
+
+            // Atualizar audiência
+            if (!dashboardData.audience) {
+                dashboardData.audience = { seguidores: { alcance: 0, porcentagem: 0 }, naoSeguidores: { alcance: 0, porcentagem: 0 } };
+            }
+            dashboardData.audience.seguidores = { alcance: audSegAlc, porcentagem: audSegPct };
+            dashboardData.audience.naoSeguidores = { alcance: audNaoSegAlc, porcentagem: audNaoSegPct };
+
+            // Re-renderizar dashboard
+            updateDashboard(dashboardData);
+            closeModal('editModal');
+            alert('✅ Dados corrigidos manualmente! Os gráficos e tabelas foram atualizados.');
+        }
+
+        // ==========================================
+        // COMPARE MODAL
+        // ==========================================
+
+        function openCompareModal() {
+            compareTargetId = null;
+            document.getElementById('confirmCompareBtn').disabled = true;
+            renderCompareList();
+            openModal('compareModal');
+        }
+
+        function renderCompareList() {
+            const list = document.getElementById('compareSavedList');
+            const snapshots = getSavedDataList();
+            if (snapshots.length === 0) {
+                list.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 20px;">Nenhum dado salvo encontrado. Primeiro salve os dados atuais.</p>';
+                return;
+            }
+            list.innerHTML = '';
+            const sorted = [...snapshots].reverse();
+            sorted.forEach(snap => {
+                const item = document.createElement('div');
+                item.className = 'saved-item';
+                item.dataset.id = snap.id;
+                item.innerHTML = '<div class="saved-info"><div class="saved-name">' + snap.name + '</div><div class="saved-date">' + snap.dateFormatted + '</div></div>';
+                item.addEventListener('click', function() {
+                    document.querySelectorAll('#compareSavedList .saved-item').forEach(el => el.classList.remove('selected'));
+                    this.classList.add('selected');
+                    compareTargetId = this.dataset.id;
+                    document.getElementById('confirmCompareBtn').disabled = false;
+                });
+                list.appendChild(item);
+            });
+        }
+
+        function confirmCompare() {
+            if (!compareTargetId) return;
+            const snapshot = loadSnapshot(compareTargetId);
+            if (!snapshot) { alert('Erro: Snapshot não encontrado.'); return; }
+            closeModal('compareModal');
+            renderGrowthComparison(snapshot.data, snapshot.name, snapshot.dateFormatted);
+        }
+
+        // ==========================================
+        // SAVED DATA MODAL
+        // ==========================================
+
+        function openSavedDataModal() {
+            renderSavedDataList();
+            openModal('savedDataModal');
+        }
+
+        function renderSavedDataList() {
+            const list = document.getElementById('savedDataList');
+            const snapshots = getSavedDataList();
+            if (snapshots.length === 0) {
+                list.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 20px;">Nenhum dado salvo ainda.</p>';
+                return;
+            }
+            list.innerHTML = '';
+            const sorted = [...snapshots].reverse();
+            sorted.forEach(snap => {
+                const item = document.createElement('div');
+                item.className = 'saved-item';
+                item.innerHTML = '<div class="saved-info"><div class="saved-name">' + snap.name + '</div><div class="saved-date">' + snap.dateFormatted + '</div></div><div class="saved-actions"><button class="saved-btn saved-btn-load" onclick="loadSavedSnapshot(\'' + snap.id + '\')">Carregar</button><button class="saved-btn saved-btn-delete" onclick="deleteSavedSnapshot(\'' + snap.id + '\')">Excluir</button></div>';
+                list.appendChild(item);
+            });
+        }
+
+        function loadSavedSnapshot(id) {
+            const snapshot = loadSnapshot(id);
+            if (!snapshot) { alert('Erro: Snapshot não encontrado.'); return; }
+            closeModal('savedDataModal');
+            updateDashboard(snapshot.data);
+            alert('✅ Dados carregados: ' + snapshot.name + ' (' + snapshot.dateFormatted + ')');
+        }
+
+        function deleteSavedSnapshot(id) {
+            if (!confirm('Tem certeza que deseja excluir este snapshot?')) return;
+            deleteSnapshot(id);
+            renderSavedDataList();
+        }
+
+        // ==========================================
+        // GROWTH COMPARISON
+        // ==========================================
+
+        function renderGrowthComparison(previousData, previousName, previousDate) {
+            const current = dashboardData;
+            const previous = previousData;
+
+            const section = document.getElementById('growthSection');
+            section.classList.remove('hidden');
+            section.scrollIntoView({ behavior: 'smooth' });
+
+            const summaryContainer = document.getElementById('comparisonSummary');
+            const metricsConfig = [
+                { key: 'alcance', label: 'Alcance', format: 'number' },
+                { key: 'impressoes', label: 'Impressões', format: 'number' },
+                { key: 'engajamento', label: 'Engajamento', format: 'number' },
+                { key: 'taxaEngajamento', label: 'Taxa Engaj.', format: 'percent' },
+                { key: 'seguidores', label: 'Seguidores', format: 'number' },
+                { key: 'cliques', label: 'Cliques', format: 'number' }
+            ];
+
+            summaryContainer.innerHTML = '';
+            metricsConfig.forEach(function(cfg) {
+                var prevVal = (previous.metrics && previous.metrics[cfg.key]) || 0;
+                var currVal = (current.metrics && current.metrics[cfg.key]) || 0;
+                var change = 0;
+                if (prevVal > 0) change = ((currVal - prevVal) / prevVal) * 100;
+
+                var card = document.createElement('div');
+                card.className = 'comparison-card';
+                var changeClass = change >= 0 ? 'positive' : 'negative';
+                var changeSign = change >= 0 ? '+' : '';
+                var prevDisplay = cfg.format === 'percent' ? prevVal.toFixed(2) + '%' : formatNumber(prevVal);
+                var currDisplay = cfg.format === 'percent' ? currVal.toFixed(2) + '%' : formatNumber(currVal);
+
+                card.innerHTML = '<div class="label">' + cfg.label + '</div><div class="value">' + currDisplay + '</div><div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">Antes: ' + prevDisplay + '</div><div class="change ' + changeClass + '">' + changeSign + change.toFixed(1) + '%</div>';
+                summaryContainer.appendChild(card);
+            });
+
+            // Update metric change indicators
+            updateMetricChanges(previous.metrics);
+
+            // Growth chart
+            if (growthChart) growthChart.destroy();
+            var gCtx = document.getElementById('growthChart').getContext('2d');
+            var labels = metricsConfig.map(function(c) { return c.label; });
+            var prevData = metricsConfig.map(function(c) { return (previous.metrics && previous.metrics[c.key]) || 0; });
+            var currData = metricsConfig.map(function(c) { return (current.metrics && current.metrics[c.key]) || 0; });
+
+            growthChart = new Chart(gCtx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: previousName || 'Anterior',
+                        data: prevData,
+                        backgroundColor: 'rgba(142, 142, 142, 0.6)',
+                        borderRadius: 6
+                    }, {
+                        label: 'Atual',
+                        data: currData,
+                        backgroundColor: 'rgba(225, 48, 108, 0.8)',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    var label = context.dataset.label || '';
+                                    var val = context.raw;
+                                    if (context.dataIndex === 3) return label + ': ' + val.toFixed(2) + '%';
+                                    return label + ': ' + formatNumber(val);
+                                }
+                            }
+                        }
+                    },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            // Variation chart
+            if (variationChart) variationChart.destroy();
+            var vCtx = document.getElementById('variationChart').getContext('2d');
+            var variations = metricsConfig.map(function(cfg) {
+                var pv = (previous.metrics && previous.metrics[cfg.key]) || 0;
+                var cv = (current.metrics && current.metrics[cfg.key]) || 0;
+                if (pv > 0) return ((cv - pv) / pv) * 100;
+                return 0;
+            });
+
+            variationChart = new Chart(vCtx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Variação (%)',
+                        data: variations,
+                        backgroundColor: variations.map(function(v) { return v >= 0 ? 'rgba(0, 184, 148, 0.8)' : 'rgba(255, 118, 117, 0.8)'; }),
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    var val = context.raw;
+                                    return (val >= 0 ? '+' : '') + val.toFixed(1) + '%';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { callback: function(value) { return value + '%'; } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateMetricChanges(previousMetrics) {
+            if (!previousMetrics) return;
+            var current = dashboardData.metrics;
+            var changeIds = [
+                { key: 'alcance', el: 'alcanceChange', suffix: '%' },
+                { key: 'impressoes', el: 'impressoesChange', suffix: '%' },
+                { key: 'engajamento', el: 'engajamentoChange', suffix: '%' },
+                { key: 'taxaEngajamento', el: 'taxaChange', suffix: 'pp' },
+                { key: 'seguidores', el: 'seguidoresChange', suffix: '%' },
+                { key: 'cliques', el: 'cliquesChange', suffix: '%' }
+            ];
+
+            changeIds.forEach(function(item) {
+                var prevVal = previousMetrics[item.key] || 0;
+                var currVal = current[item.key] || 0;
+                var change = 0;
+                var changeText = '0%';
+
+                // Só calcular/mostrar mudança para seguidores quando existe comparativo válido
+                if (item.key === 'seguidores' && (!previousMetrics || !previousMetrics.seguidores || previousMetrics.seguidores <= 0)) {
+                    // sem comparativo válido: esconder o marcador de mudança
+                    var elNoPrev = document.getElementById(item.el);
+                    if (elNoPrev) {
+                        elNoPrev.textContent = '';
+                        elNoPrev.className = 'metric-change';
+                    }
+                    return; // pronto para este item
+                }
+
+                if (prevVal > 0) {
+                    if (item.key === 'taxaEngajamento') {
+                        change = currVal - prevVal;
+                        changeText = (change >= 0 ? '+' : '') + change.toFixed(2) + ' pp';
+                    } else {
+                        change = ((currVal - prevVal) / prevVal) * 100;
+                        changeText = (change >= 0 ? '+' : '') + change.toFixed(1) + '%';
+                    }
+                }
+
+                var el = document.getElementById(item.el);
+                if (el) {
+                    el.textContent = changeText;
+                    el.className = 'metric-change ' + (change >= 0 ? 'positive' : 'negative');
+                }
+            });
+        }
+
+        // ==========================================
+        // FILE UPLOAD
+        // ==========================================
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            selectedFiles = Array.from(e.target.files);
+            displayPreviews();
+        });
+
+        function displayPreviews() {
+            var previewContainer = document.getElementById('previewImages');
+            var processBtn = document.getElementById('processBtn');
+            previewContainer.innerHTML = '';
+
+            selectedFiles.forEach(function(file) {
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    var img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.className = 'preview-img';
+                    previewContainer.appendChild(img);
+                };
+                reader.readAsDataURL(file);
+            });
+
+            processBtn.style.display = selectedFiles.length > 0 ? 'inline-block' : 'none';
+        }
+
+        function getBase64(file) {
+            return new Promise(function(resolve, reject) {
+                var reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = function() { resolve(reader.result); };
+                reader.onerror = function(error) { reject(error); };
+            });
+        }
+
+        // ==========================================
+        // AI PROCESSING - IMPROVED PRECISION
+        // ==========================================
+
+        /**
+         * Converte strings como "1.5K", "2.3M", "15.320", "15,320" para números.
+         * Também lida com "+1523" e "-523".
+         * Suporta formatos:
+         * - BR: 1.500,50 (ponto milhar, vírgula decimal)
+         * - US: 1,500.50 (vírgula milhar, ponto decimal)
+         * - Abreviado: 1.5K, 2.3M
+         * - Com sinal: +1523, -523
+         */
+        function parseNumberString(str) {
+            if (str === null || str === undefined || str === '') return 0;
+            if (typeof str === 'number') return str;
+
+            var s = String(str).trim();
+
+            // Remove sinal de mais no início
+            if (s.startsWith('+')) s = s.substring(1);
+
+            // Detecta e armazena se é negativo
+            var isNegative = s.startsWith('-');
+            if (isNegative) s = s.substring(1);
+
+            // Detecta multiplicadores K, M, B
+            var hasK = /[kK]/.test(s);
+            var hasM = /[mM]/.test(s);
+            var hasB = /[bB]/.test(s);
+
+            // Remove sufixos K, M, B e caracteres não numéricos (% etc)
+            var numStr = s.replace(/[kKmMbB%]/g, '').trim();
+
+            // Se a string estiver vazia após limpeza, retorna 0
+            if (numStr === '') return 0;
+
+            var numericValue;
+
+            // Estratégia de detecção de formato:
+            // 1. Se tem VÍRGULA e PONTO -> verificar qual é decimal
+            if (numStr.indexOf(',') !== -1 && numStr.indexOf('.') !== -1) {
+                // Tem ambos os separadores
+                var lastComma = numStr.lastIndexOf(',');
+                var lastDot = numStr.lastIndexOf('.');
+                
+                if (lastComma > lastDot) {
+                    // Vírgula é decimal (BR): 1.500,50
+                    numericValue = parseFloat(numStr.replace(/\./g, '').replace(',', '.'));
+                } else {
+                    // Ponto é decimal (US): 1,500.50
+                    numericValue = parseFloat(numStr.replace(/,/g, ''));
+                }
+            } else if (numStr.indexOf(',') !== -1) {
+                // Só tem vírgula
+                // Verifica se parece decimal (ex: 1500,50) ou milhar (ex: 1,500)
+                var commaParts = numStr.split(',');
+                if (commaParts.length === 2 && commaParts[1].length <= 2) {
+                    // Provavelmente decimal: 1500,50 ou 5,5
+                    numericValue = parseFloat(numStr.replace(',', '.'));
+                } else {
+                    // Provavelmente milhar: 1,500 ou 1,500,000
+                    numericValue = parseFloat(numStr.replace(/,/g, ''));
+                }
+            } else if (numStr.indexOf('.') !== -1) {
+                // Só tem ponto
+                var dotParts = numStr.split('.');
+                if (dotParts.length === 2 && dotParts[1].length <= 2) {
+                    // Pode ser decimal (US): 1500.50 ou 5.5
+                    // OU milhar (BR): 1.50? Improvável, assume decimal
+                    numericValue = parseFloat(numStr);
+                } else {
+                    // Provavelmente milhar (BR): 1.500 ou 1.500.000
+                    numericValue = parseFloat(numStr.replace(/\./g, ''));
+                }
+            } else {
+                // Número simples sem separadores
+                numericValue = parseFloat(numStr);
+            }
+
+            if (isNaN(numericValue)) return 0;
+
+            // Aplica multiplicadores K, M, B
+            if (hasK) numericValue *= 1000;
+            if (hasM) numericValue *= 1000000;
+            if (hasB) numericValue *= 1000000000;
+
+            // Aplica sinal negativo
+            if (isNegative) numericValue = Math.abs(numericValue);
+
+            return Math.round(numericValue);
+        }
+
+        async function processImages() {
+            var apiKey = document.getElementById('apiKey').value;
+            var provider = document.getElementById('apiProvider').value;
+
+            if (!apiKey) { alert('Por favor, insira sua chave de API'); return; }
+            if (selectedFiles.length === 0) { alert('Por favor, selecione pelo menos uma imagem'); return; }
+
+            var maxImages = 5;
+            var filesToProcess = selectedFiles.slice(0, maxImages);
+            if (selectedFiles.length > maxImages) {
+                alert('Atenção: Apenas as primeiras ' + maxImages + ' imagens serão processadas. Limite da API.');
+            }
+
+            document.getElementById('loadingSection').classList.add('active');
+            document.getElementById('dashboardContent').classList.add('hidden');
+            document.getElementById('loadingText').textContent = 'Analisando ' + filesToProcess.length + ' print(s) e extraindo métricas...';
+
+            try {
+                var allExtractedData = [];
+                var debugLogs = [];
+
+                for (var i = 0; i < filesToProcess.length; i++) {
+                    document.getElementById('loadingText').textContent = 'Processando imagem ' + (i + 1) + ' de ' + filesToProcess.length + '...';
+                    var base64 = await getBase64(filesToProcess[i]);
+                    var singleResult = await analyzeSingleImage(base64, provider, apiKey);
+                    allExtractedData.push(singleResult);
+                    debugLogs.push({ image: i + 1, data: JSON.parse(JSON.stringify(singleResult)) });
+                }
+
+                var mergedData = mergeResults(allExtractedData);
+
+                // Armazenar dados de debug para o painel visual
+                lastDebugData = {
+                    individualResults: debugLogs,
+                    mergedData: JSON.parse(JSON.stringify(mergedData))
+                };
+
+                // Log de debug no console
+                console.log('=== DEBUG IA ===');
+                console.log('Resultados individuais:', JSON.stringify(debugLogs, null, 2));
+                console.log('Dados mesclados:', JSON.stringify(mergedData, null, 2));
+                console.log('=== FIM DEBUG ===');
+
+                updateDashboard(mergedData);
+
+                document.getElementById('loadingSection').classList.remove('active');
+                document.getElementById('dashboardContent').classList.remove('hidden');
+
+                // Mostrar aviso se dados vieram zerados
+                if (mergedData.metrics && mergedData.metrics.alcance === 0 && mergedData.metrics.impressoes === 0) {
+                    if (confirm('⚠️ A IA não conseguiu extrair dados das imagens. Deseja abrir o editor manual para inserir os dados manualmente?')) {
+                        openEditModal();
+                    }
+                }
+
+            } catch (error) {
+                console.error('Erro ao processar imagens:', error);
+                alert('Erro ao processar imagens: ' + error.message);
+                document.getElementById('loadingSection').classList.remove('active');
+            }
+        }
+
+        async function analyzeSingleImage(base64, provider, apiKey) {
+            var prompt = [
+                'VOCÊ É UM ESPECIALISTA EM EXTRAIR DADOS DO INSTAGRAM INSIGHTS.',
+                'Analise a imagem com atenção e extraia APENAS os números reais visíveis.',
+                'NÃO INVENTE NADA. Use 0 se não encontrar o valor exato.',
+                'SEJA PRECISO: copie o número exato que está visível na imagem.',
+                '',
+                '=== INSTRUÇÕES CRÍTICAS DE PRECISÃO ===',
+                '1. Olhe para CADA card/métrica individualmente na imagem.',
+                '2. Leia o NÚMERO EXATO escrito em cada card.',
+                '3. NÃO arredonde, NÃO estime, NÃO calcule nada.',
+                '4. Se o número estiver em formato abreviado (1.5K), retorne como número 1500.',
+                '5. Se NÃO conseguir ler um número claramente, use 0.',
+                '6. Preste atenção EXTREMA aos separadores:',
+                '   - No BRASIL: ponto separa milhar (1.500) e vírgula separa decimal (1,5)',
+                '   - Nos EUA: vírgula separa milhar (1,500) e ponto separa decimal (1.5)',
+                '   - Instagram usa formato BRASILEIRO: 1.500 = mil e quinhentos',
+                '   - 1.5K = 1500 (mil e quinhentos)',
+                '   - 2,3K = 2300 (dois mil e trezentos)',
+                '',
+                '=== LAYOUT DO INSTAGRAM INSIGHTS (visão geral) ===',
+                'A imagem mostra cards/quadros organizados em grade com métricas.',
+                'Cada card tem um ícone, um título e um número grande.',
+                '',
+                'MÉTRICAS PRINCIPAIS (cards individuais no topo):',
+                '1. "Alcance" (ícone de 🚀 foguete ou 👁️ olho) - contas únicas alcançadas',
+                '2. "Impressões" (ícone de 👁️ olho ou 📈 gráfico) - total de visualizações',
+                '3. "Engajamento" (ícone de ❤️ coração) - total de interações (curtidas+comentários+compartilhamentos+salvos)',
+                '4. "Taxa de engajamento" (ícone de 📊 gráfico de barras) - percentual',
+                '5. "Seguidores" (ícone de 👥 pessoas) - crescimento de seguidores no período',
+                '6. "Cliques" (ícone de 🔗 link) - cliques no link da bio',
+                '',
+                'IMPORTANTE sobre "Seguidores":',
+                '- Procure pelo card com ícone de 👥 pessoas/usuários',
+                '- Pode estar escrito: "Seguidores", "Novo seguidores", "Crescimento"',
+                '- Pode mostrar "+1523" (crescimento) ou "-523" (perda)',
+                '- Retorne o número ABSOLUTO (sem o sinal)',
+                '- Se for negativo (-523), retorne 523 mesmo (já indica perda)',
+                '- Se não encontrar, procure na seção "Público" ou "Audiência"',
+                '',
+                'IMPORTANTE sobre "Cliques no Link":',
+                '- Procure pelo card com ícone de 🔗 corrente/link',
+                '- Pode estar escrito: "Cliques no link", "Cliques no site", "Website clicks"',
+                '- Geralmente está na seção inferior de métricas ou em "Atividade"',
+                '- Se não encontrar, procure por "Link" ou cliques na bio',
+                '',
+                '=== COMPARATIVO POR FORMATO (seção "Formatos" ou "Distribuição") ===',
+                'IMPORTANTE: Identifique corretamente cada formato pelos ÍCONES e CORES:',
+                '',
+                '- REELS: ícone 🎬 (claquete/filme) ou ▶️ (play triangular).',
+                '  Geralmente na cor ROSA (#E1306C) ou VERMELHO.',
+                '  Na lista de posts, reels têm ícone de claquete.',
+                '',
+                '- POSTS (Carrossel): ícone 🎠 (carrossel/cavalo) ou 📷 (câmera).',
+                '  Geralmente na cor LARANJA (#F77737) ou AZUL.',
+                '  Posts com múltiplas imagens têm ícone de empilhamento.',
+                '',
+                '- STORIES: ícone 📸 (câmera) ou ✨ (estrela).',
+                '  Geralmente na cor AMARELA (#FCAF45) ou ROXA.',
+                '  Stories têm ícone de câmera com gradiente.',
+                '',
+                'ATENÇÃO: Não confunda Reels com Posts!',
+                '- Reels são vídeos curtos (ícone de play/claquete)',
+                '- Posts/Carrossel são imagens estáticas (ícone de câmera/carrossel)',
+                '- Stories são conteúdos temporários (ícone de câmera com gradiente)',
+                '',
+                'Para cada formato, extraia:',
+                '- Alcance (número de contas alcançadas por aquele formato)',
+                '- Engajamento (percentual de engajamento daquele formato)',
+                '- Quantidade de posts (número de publicações daquele formato)',
+                '',
+                '=== PÚBLICO: SEGUIDORES vs NÃO SEGUIDORES ===',
+                '- Procure pelo gráfico de pizza/rosca "Público alcançado"',
+                '- A porção ROSA/MAGENTA = Seguidores',
+                '- A porção CINZA = Não Seguidores',
+                '- Extraia o alcance de cada grupo e a porcentagem',
+                '',
+                '=== DADOS EXTRAS ===',
+                '- Identifique QUALQUER outra informação visível na imagem',
+                '- Exemplos: dados demográficos (gênero %, idade %, localização top cidades)',
+                '- Horários de pico, dias da semana com melhor desempenho',
+                '- Comparações com período anterior (setas para cima/baixo)',
+                '- Retorne como array: { label: "nome", value: "valor", type: "number" ou "text" }',
+                '',
+                '=== POSTS INDIVIDUAIS (se houver lista) ===',
+                '- Cada post tem um ícone indicando o tipo:',
+                '  🎬 ou ▶️ = reels',
+                '  🎠 ou 📷 = carrossel',
+                '  🖼️ ou 📸 = imagem estática',
+                '- Extraia: alcance, curtidas, comentários',
+                '- Calcule engajamento = ((curtidas + comentários) / alcance) * 100',
+                '',
+                '=== FORMATAÇÃO DE NÚMEROS (REGRAS ABSOLUTAS) ===',
+                '- 1.5K = 1500 (mil e quinhentos)',
+                '- 2.3M = 2300000 (dois milhões e trezentos mil)',
+                '- 15.320 = 15320 (quinze mil, trezentos e vinte - ponto é milhar no BR)',
+                '- 15,320 = 15320 (quinze mil, trezentos e vinte - vírgula é milhar nos EUA)',
+                '- 1.500 = 1500 (mil e quinhentos)',
+                '- 1,5K = 1500 (mil e quinhentos)',
+                '- +1523 = 1523 (crescimento, ignore o sinal de mais)',
+                '- -523 = 523 (perda, use o valor absoluto)',
+                '- 5,2% = 5.2 (cinco vírgula dois por cento)',
+                '- 5.2% = 5.2 (cinco ponto dois por cento)',
+                '',
+                'IMPORTANTE: Retorne os números como VALORES NUMÉRICOS no JSON, NÃO como strings.',
+                'Exemplo: {"alcance": 154320} e NÃO {"alcance": "154320"}',
+                '',
+                'RETORNE APENAS JSON VÁLIDO, SEM markdown, SEM explicações, SEM código adicional:',
+                '{"metrics":{"alcance":0,"impressoes":0,"engajamento":0,"taxaEngajamento":0.0,"seguidores":0,"cliques":0},"comparison":{"reels":{"alcance":0,"engajamento":0.0,"posts":0},"posts":{"alcance":0,"engajamento":0.0,"posts":0},"stories":{"alcance":0,"engajamento":0.0,"posts":0}},"audience":{"seguidores":{"alcance":0,"porcentagem":0},"naoSeguidores":{"alcance":0,"porcentagem":0}},"extraData":[{"label":"","value":"","type":""}],"posts":[{"tipo":"reels","alcance":0,"engajamento":0.0,"curtidas":0,"comentarios":0}]}'
+            ].join('\n');
+
+            var imageContent = { type: 'image_url', image_url: { url: base64 } };
+            var messageContent = [imageContent, { type: 'text', text: prompt }];
+            var response;
+
+            switch(provider) {
+                case 'groq':
+                    response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                        method: 'POST',
+                        headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+                            messages: [{ role: 'user', content: messageContent }],
+                            max_tokens: 8000,
+                            temperature: 0.1
+                        })
+                    });
+                    break;
+
+                case 'gemini':
+                    var geminiContent = { inlineData: { mimeType: 'image/jpeg', data: base64.split(',')[1] } };
+                    response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview:generateContent?key=' + apiKey, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [geminiContent, { text: prompt }] }],
+                            generationConfig: { temperature: 0.1, maxOutputTokens: 8000 }
+                        })
+                    });
+                    if (!response.ok) {
+                        var errorData = await response.json();
+                        throw new Error('Gemini API Error: ' + (errorData.error?.message || response.statusText));
+                    }
+                    var geminiData = await response.json();
+                    if (geminiData.error) throw new Error('Gemini Error: ' + geminiData.error.message);
+                    if (!geminiData.candidates || geminiData.candidates.length === 0) {
+                        throw new Error('Gemini não retornou resposta. Verifique se as imagens estão claras.');
+                    }
+                    var geminiText = geminiData.candidates[0]?.content?.parts?.[0]?.text || '{}';
+                    var geminiResult = safeParseJSON(geminiText);
+                    return validateAndFixData(geminiResult);
+
+                case 'openai':
+                    response = await fetch('https://api.openai.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            model: 'gpt-4o-mini',
+                            messages: [{ role: 'user', content: messageContent }],
+                            max_tokens: 8000,
+                            temperature: 0.1
+                        })
+                    });
+                    break;
+
+                case 'deepseek':
+                    // DeepSeek-V4 Preview - API compatível com OpenAI para visão
+                    // Usa content como string contendo a imagem em formato data URI
+                    // Formato: data:image/{formato};base64,{base64}
+                    var imageData = base64.split(',')[1] || base64;
+                    var mimeType = base64.startsWith('data:') ? base64.split(';')[0].split(':')[1] : 'image/jpeg';
+                    var deepseekContent = prompt + '\n\ndata:' + mimeType + ';base64,' + imageData;
+                    response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            model: 'deepseek-chat',
+                            messages: [{ role: 'user', content: deepseekContent }],
+                            max_tokens: 8000,
+                            temperature: 0.1
+                        })
+                    });
+                    break;
+
+                case 'deepseek-v4-flash':
+                    // DeepSeek-V4-Flash - modelo rápido com suporte a visão
+                    var imageDataFlash = base64.split(',')[1] || base64;
+                    var mimeTypeFlash = base64.startsWith('data:') ? base64.split(';')[0].split(':')[1] : 'image/jpeg';
+                    var dsFlashContent = prompt + '\n\ndata:' + mimeTypeFlash + ';base64,' + imageDataFlash;
+                    response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            model: 'deepseek-v4-flash',
+                            messages: [{ role: 'user', content: dsFlashContent }],
+                            max_tokens: 8000,
+                            temperature: 0.1
+                        })
+                    });
+                    break;
+
+                case 'deepseek-v4-pro':
+                    // DeepSeek-V4-Pro - modelo premium com suporte a visão
+                    var imageDataPro = base64.split(',')[1] || base64;
+                    var mimeTypePro = base64.startsWith('data:') ? base64.split(';')[0].split(':')[1] : 'image/jpeg';
+                    var dsProContent = prompt + '\n\ndata:' + mimeTypePro + ';base64,' + imageDataPro;
+                    response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            model: 'deepseek-v4-pro',
+                            messages: [{ role: 'user', content: dsProContent }],
+                            max_tokens: 8000,
+                            temperature: 0.1
+                        })
+                    });
+                    break;
+
+                case 'openrouter':
+                    response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': 'Bearer ' + apiKey,
+                            'HTTP-Referer': window.location.href,
+                            'X-Title': 'Instagram Dashboard',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            model: 'meta-llama/llama-3.2-11b-vision-instruct',
+                            messages: [{ role: 'user', content: messageContent }],
+                            max_tokens: 8000,
+                            temperature: 0.1
+                        })
+                    });
+                    break;
+            }
+
+            if (provider !== 'gemini') {
+                if (!response.ok) {
+                    var error = await response.json();
+                    throw new Error(error.error?.message || 'Erro na API');
+                }
+                var data = await response.json();
+                var text = data.choices?.[0]?.message?.content || '{}';
+                console.log('=== RESPOSTA RAW DA API ===', text);
+                var result = safeParseJSON(text);
+                console.log('=== JSON PARSEADO ===', result);
+                var validated = validateAndFixData(result);
+                console.log('=== DADOS VALIDADOS ===', validated);
+                return validated;
+            }
+        }
+
+        // ==========================================
+        // VALIDATE AND FIX DATA (pós-processamento)
+        // ==========================================
+
+        /**
+         * Tenta converter um valor para número usando parseNumberString se for string.
+         * Se já for número válido, retorna como está.
+         */
+        function ensureNumber(val) {
+            if (typeof val === 'number' && !isNaN(val)) return val;
+            if (typeof val === 'string' && val.trim() !== '') {
+                var parsed = parseNumberString(val);
+                console.log('parseNumberString: "' + val + '" -> ' + parsed);
+                return parsed;
+            }
+            return 0;
+        }
+
+        function validateAndFixData(data) {
+            if (!data || typeof data !== 'object') {
+                return { metrics: {}, comparison: {}, audience: { seguidores: { alcance: 0, porcentagem: 0 }, naoSeguidores: { alcance: 0, porcentagem: 0 } }, extraData: [], posts: [] };
+            }
+
+            // Garantir que metrics existe
+            if (!data.metrics) data.metrics = {};
+            var metricKeys = ['alcance', 'impressoes', 'engajamento', 'taxaEngajamento', 'seguidores', 'cliques'];
+            metricKeys.forEach(function(k) {
+                data.metrics[k] = ensureNumber(data.metrics[k]);
+            });
+
+            // Garantir que comparison existe
+            if (!data.comparison) data.comparison = {};
+            var formats = ['reels', 'posts', 'stories'];
+            formats.forEach(function(f) {
+                if (!data.comparison[f]) data.comparison[f] = {};
+                data.comparison[f].alcance = ensureNumber(data.comparison[f].alcance);
+                data.comparison[f].engajamento = ensureNumber(data.comparison[f].engajamento);
+                data.comparison[f].posts = ensureNumber(data.comparison[f].posts);
+            });
+
+            // Garantir que audience existe
+            if (!data.audience) data.audience = {};
+            if (!data.audience.seguidores) data.audience.seguidores = {};
+            if (!data.audience.naoSeguidores) data.audience.naoSeguidores = {};
+            data.audience.seguidores.alcance = ensureNumber(data.audience.seguidores.alcance);
+            data.audience.seguidores.porcentagem = ensureNumber(data.audience.seguidores.porcentagem);
+            data.audience.naoSeguidores.alcance = ensureNumber(data.audience.naoSeguidores.alcance);
+            data.audience.naoSeguidores.porcentagem = ensureNumber(data.audience.naoSeguidores.porcentagem);
+
+            // Garantir que extraData é array
+            if (!data.extraData || !Array.isArray(data.extraData)) data.extraData = [];
+
+            // Garantir que posts é array e normalizar valores
+            if (!data.posts || !Array.isArray(data.posts)) data.posts = [];
+            data.posts = data.posts.map(function(post) {
+                if (!post || typeof post !== 'object') return null;
+                return {
+                    tipo: post.tipo || 'desconhecido',
+                    alcance: ensureNumber(post.alcance),
+                    engajamento: ensureNumber(post.engajamento),
+                    curtidas: ensureNumber(post.curtidas),
+                    comentarios: ensureNumber(post.comentarios)
+                };
+            }).filter(function(p) { return p !== null; });
+
+            // Log de validação
+            console.log('=== VALIDAÇÃO === Dados validados e corrigidos:', JSON.stringify(data, null, 2));
+
+            return data;
+        }
+
+        // ==========================================
+        // SAFE JSON PARSER
+        // ==========================================
+
+        function safeParseJSON(text) {
+            if (!text || text.trim() === '') {
+                console.warn('Texto vazio recebido da IA');
+                return { metrics: {}, comparison: {}, audience: { seguidores: { alcance: 0, porcentagem: 0 }, naoSeguidores: { alcance: 0, porcentagem: 0 } }, extraData: [], posts: [] };
+            }
+
+            // Remove markdown code blocks
+            var cleaned = text.replace(/```json\n?|\n?```/g, '').trim();
+
+            // Try direct parse first
+            try {
+                return JSON.parse(cleaned);
+            } catch (e) {
+                console.warn('JSON parse direto falhou, tentando recuperação...', e.message);
+            }
+
+            // Try to find JSON object in the text using regex
+            try {
+                var jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    return JSON.parse(jsonMatch[0]);
+                }
+            } catch (e) {
+                console.warn('Regex recovery falhou:', e.message);
+            }
+
+            // Try to fix common issues: single quotes instead of double quotes
+            try {
+                var fixed = cleaned
+                    .replace(/'/g, '"')
+                    .replace(/(\w+):/g, '"$1":')
+                    .replace(/,\s*([}\]])/g, '$1');
+                return JSON.parse(fixed);
+            } catch (e) {
+                console.warn('Fix recovery falhou:', e.message);
+            }
+
+            // Last resort: return empty structure
+            console.error('Não foi possível parsear o JSON da IA. Texto:', cleaned.substring(0, 200));
+            return { metrics: {}, comparison: {}, audience: { seguidores: { alcance: 0, porcentagem: 0 }, naoSeguidores: { alcance: 0, porcentagem: 0 } }, extraData: [], posts: [] };
+        }
+
+        // ==========================================
+        // MERGE RESULTS FROM MULTIPLE IMAGES
+        // ==========================================
+
+        /**
+         * Calcula a mediana de um array de números.
+         * Usa mediana em vez de média para ser mais robusto contra outliers.
+         */
+        function median(values) {
+            if (!values || values.length === 0) return 0;
+            var sorted = values.slice().sort(function(a, b) { return a - b; });
+            var half = Math.floor(sorted.length / 2);
+            if (sorted.length % 2 === 0) {
+                return (sorted[half - 1] + sorted[half]) / 2;
+            }
+            return sorted[half];
+        }
+
+        function mergeResults(results) {
+            if (!results || results.length === 0) {
+                return { metrics: {}, comparison: {}, audience: { seguidores: { alcance: 0, porcentagem: 0 }, naoSeguidores: { alcance: 0, porcentagem: 0 } }, extraData: [], posts: [] };
+            }
+            if (results.length === 1) {
+                // Garantir que audience e extraData existam mesmo em resultado único
+                var single = JSON.parse(JSON.stringify(results[0]));
+                if (!single.audience) single.audience = { seguidores: { alcance: 0, porcentagem: 0 }, naoSeguidores: { alcance: 0, porcentagem: 0 } };
+                if (!single.extraData) single.extraData = [];
+                if (!single.posts) single.posts = [];
+                return single;
+            }
+
+            var merged = {
+                metrics: { alcance: 0, impressoes: 0, engajamento: 0, taxaEngajamento: 0, seguidores: 0, cliques: 0 },
+                comparison: {
+                    reels: { alcance: 0, engajamento: 0, posts: 0 },
+                    posts: { alcance: 0, engajamento: 0, posts: 0 },
+                    stories: { alcance: 0, engajamento: 0, posts: 0 }
+                },
+                audience: {
+                    seguidores: { alcance: 0, porcentagem: 0 },
+                    naoSeguidores: { alcance: 0, porcentagem: 0 }
+                },
+                extraData: [],
+                posts: []
+            };
+
+            // Para métricas principais: usar MEDIANA para evitar outliers
+            // Se apenas 1 resultado tiver valor > 0 e os outros 0, usar esse valor
+            // Se múltiplos resultados tiverem valores diferentes, usar mediana
+            var metricKeys = ['alcance', 'impressoes', 'engajamento', 'seguidores', 'cliques'];
+            metricKeys.forEach(function(key) {
+                var values = [];
+                results.forEach(function(r) {
+                    if (r.metrics && r.metrics[key] > 0) {
+                        values.push(r.metrics[key]);
+                    }
+                });
+                if (values.length === 0) {
+                    merged.metrics[key] = 0;
+                } else if (values.length === 1) {
+                    merged.metrics[key] = values[0];
+                } else {
+                    // Usar mediana para múltiplos valores
+                    merged.metrics[key] = Math.round(median(values));
+                }
+            });
+
+            // Taxa de engajamento: média ponderada
+            var totalEngagement = 0;
+            var totalReach = 0;
+            results.forEach(function(r) {
+                if (r.metrics) {
+                    totalEngagement += r.metrics.engajamento || 0;
+                    totalReach += r.metrics.alcance || 0;
+                }
+            });
+            merged.metrics.taxaEngajamento = totalReach > 0 ? parseFloat(((totalEngagement / totalReach) * 100).toFixed(2)) : 0;
+
+            // Comparação por formato: usar mediana do alcance, média do engajamento
+            var formatKeys = ['reels', 'posts', 'stories'];
+            formatKeys.forEach(function(fmt) {
+                var alcValues = [], engValues = [], pstValues = [];
+                results.forEach(function(r) {
+                    if (r.comparison && r.comparison[fmt]) {
+                        if (r.comparison[fmt].alcance > 0) alcValues.push(r.comparison[fmt].alcance);
+                        if (r.comparison[fmt].engajamento > 0) engValues.push(r.comparison[fmt].engajamento);
+                        if (r.comparison[fmt].posts > 0) pstValues.push(r.comparison[fmt].posts);
+                    }
+                });
+                merged.comparison[fmt] = {
+                    alcance: alcValues.length > 0 ? Math.round(median(alcValues)) : 0,
+                    engajamento: engValues.length > 0 ? parseFloat(median(engValues).toFixed(2)) : 0,
+                    posts: pstValues.length > 0 ? Math.round(median(pstValues)) : 0
+                };
+            });
+
+            // Posts: juntar todos e remover duplicatas
+            var allPosts = [];
+            results.forEach(function(r) {
+                if (r.posts && Array.isArray(r.posts)) {
+                    allPosts = allPosts.concat(r.posts);
+                }
+            });
+            merged.posts = removeDuplicatePosts(allPosts);
+
+            // Audience: usar mediana do alcance de cada grupo
+            var audKeys = ['seguidores', 'naoSeguidores'];
+            audKeys.forEach(function(group) {
+                var alcValues = [], pctValues = [];
+                results.forEach(function(r) {
+                    if (r.audience && r.audience[group]) {
+                        if (r.audience[group].alcance > 0) alcValues.push(r.audience[group].alcance);
+                        if (r.audience[group].porcentagem > 0) pctValues.push(r.audience[group].porcentagem);
+                    }
+                });
+                merged.audience[group] = {
+                    alcance: alcValues.length > 0 ? Math.round(median(alcValues)) : 0,
+                    porcentagem: pctValues.length > 0 ? parseFloat(median(pctValues).toFixed(1)) : 0
+                };
+            });
+
+            // Se não temos porcentagem mas temos alcance, calcular
+            var totalAudAlc = merged.audience.seguidores.alcance + merged.audience.naoSeguidores.alcance;
+            if (totalAudAlc > 0 && merged.audience.seguidores.porcentagem === 0) {
+                merged.audience.seguidores.porcentagem = parseFloat(((merged.audience.seguidores.alcance / totalAudAlc) * 100).toFixed(1));
+                merged.audience.naoSeguidores.porcentagem = parseFloat((100 - merged.audience.seguidores.porcentagem).toFixed(1));
+            }
+
+            // ExtraData: juntar todos os dados extras únicos
+            var allExtra = [];
+            results.forEach(function(r) {
+                if (r.extraData && Array.isArray(r.extraData)) {
+                    r.extraData.forEach(function(item) {
+                        if (item && item.label && item.label.trim() !== '') {
+                            // Evitar duplicatas pelo label
+                            var exists = allExtra.some(function(e) { return e.label === item.label; });
+                            if (!exists) allExtra.push(item);
+                        }
+                    });
+                }
+            });
+            merged.extraData = allExtra;
+
+            console.log('=== MERGE === Resultados mesclados (mediana):', JSON.stringify(merged, null, 2));
+
+            return merged;
+        }
+
+        function removeDuplicatePosts(posts) {
+            var unique = [];
+            posts.forEach(function(post) {
+                var isDuplicate = unique.some(function(existing) {
+                    if (existing.tipo !== post.tipo) return false;
+                    var maxReach = Math.max(existing.alcance, post.alcance);
+                    var minReach = Math.min(existing.alcance, post.alcance);
+                    if (maxReach === 0) return false;
+                    var diff = ((maxReach - minReach) / maxReach) * 100;
+                    return diff < 10;
+                });
+                if (!isDuplicate) unique.push(post);
+            });
+            return unique;
+        }
+
+        // ==========================================
+        // UPDATE DASHBOARD
+        // ==========================================
+
+        function updateDashboard(data) {
+            if (data.metrics) {
+                Object.keys(data.metrics).forEach(function(key) {
+                    if (data.metrics[key] !== undefined) dashboardData.metrics[key] = data.metrics[key];
+                });
+            }
+            if (data.comparison) {
+                Object.keys(data.comparison).forEach(function(format) {
+                    if (dashboardData.comparison[format]) {
+                        Object.keys(data.comparison[format]).forEach(function(key) {
+                            if (data.comparison[format][key] !== undefined) dashboardData.comparison[format][key] = data.comparison[format][key];
+                        });
+                    }
+                });
+            }
+            if (data.posts && Array.isArray(data.posts) && data.posts.length > 0) {
+                dashboardData.posts = data.posts;
+                var sortedPosts = [...data.posts].sort(function(a, b) { return b.engajamento - a.engajamento; });
+                dashboardData.topPosts = sortedPosts.slice(0, 10);
+                dashboardData.worstPosts = sortedPosts.slice(-10).reverse();
+            }
+
+            // Audience
+            if (data.audience) {
+                if (data.audience.seguidores) {
+                    dashboardData.audience.seguidores.alcance = data.audience.seguidores.alcance || 0;
+                    dashboardData.audience.seguidores.porcentagem = data.audience.seguidores.porcentagem || 0;
+                }
+                if (data.audience.naoSeguidores) {
+                    dashboardData.audience.naoSeguidores.alcance = data.audience.naoSeguidores.alcance || 0;
+                    dashboardData.audience.naoSeguidores.porcentagem = data.audience.naoSeguidores.porcentagem || 0;
+                }
+            }
+
+            // ExtraData
+            if (data.extraData && Array.isArray(data.extraData) && data.extraData.length > 0) {
+                dashboardData.extraData = data.extraData;
+            }
+
+            if (dashboardData.metrics) {
+                document.getElementById('alcance').textContent = formatNumber(dashboardData.metrics.alcance);
+                document.getElementById('impressoes').textContent = formatNumber(dashboardData.metrics.impressoes);
+                document.getElementById('engajamento').textContent = formatNumber(dashboardData.metrics.engajamento);
+                document.getElementById('taxaEngajamento').textContent = dashboardData.metrics.taxaEngajamento.toFixed(2) + '%';
+                document.getElementById('seguidores').textContent = formatNumber(dashboardData.metrics.seguidores);
+                document.getElementById('cliques').textContent = formatNumber(dashboardData.metrics.cliques);
+            }
+            if (dashboardData.comparison) {
+                updateComparisonChart(dashboardData.comparison);
+                updateDistributionChart(dashboardData.comparison);
+                document.getElementById('reelsAlcance').textContent = formatNumber(dashboardData.comparison.reels?.alcance || 0);
+                document.getElementById('reelsEngajamento').textContent = (dashboardData.comparison.reels?.engajamento || 0).toFixed(2) + '%';
+                document.getElementById('carouselAlcance').textContent = formatNumber(dashboardData.comparison.posts?.alcance || 0);
+                document.getElementById('carouselEngajamento').textContent = (dashboardData.comparison.posts?.engajamento || 0).toFixed(2) + '%';
+                document.getElementById('imagemAlcance').textContent = formatNumber(dashboardData.comparison.stories?.alcance || 0);
+                document.getElementById('imagemEngajamento').textContent = (dashboardData.comparison.stories?.engajamento || 0).toFixed(2) + '%';
+            }
+            if (dashboardData.posts.length > 0) {
+                updatePostsTable('topPostsTable', dashboardData.topPosts, 'top');
+                updatePostsTable('worstPostsTable', dashboardData.worstPosts, 'worst');
+            }
+
+            // Audience e ExtraData
+            updateAudienceChart(dashboardData.audience);
+            updateExtraDataCards(dashboardData.extraData);
+        }
+
+        // ==========================================
+        // AUDIENCE CHART (Seguidores vs Não Seguidores)
+        // ==========================================
+
+        let audienceChart = null;
+
+        function updateAudienceChart(audience) {
+            var section = document.getElementById('extraDataSection');
+            if (!audience || (!audience.seguidores?.alcance && !audience.naoSeguidores?.alcance)) {
+                section.classList.add('hidden');
+                return;
+            }
+            section.classList.remove('hidden');
+
+            var ctx = document.getElementById('audienceChart').getContext('2d');
+            if (audienceChart) audienceChart.destroy();
+
+            var segAlc = audience.seguidores?.alcance || 0;
+            var naoSegAlc = audience.naoSeguidores?.alcance || 0;
+            var segPct = audience.seguidores?.porcentagem || 0;
+            var naoSegPct = audience.naoSeguidores?.porcentagem || 0;
+
+            // Se não temos porcentagem mas temos alcance, calcular
+            if (segPct === 0 && naoSegPct === 0 && (segAlc > 0 || naoSegAlc > 0)) {
+                var total = segAlc + naoSegAlc;
+                segPct = total > 0 ? parseFloat(((segAlc / total) * 100).toFixed(1)) : 0;
+                naoSegPct = total > 0 ? parseFloat((100 - segPct).toFixed(1)) : 0;
+            }
+
+            audienceChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Seguidores (' + segPct + '%)', 'Não Seguidores (' + naoSegPct + '%)'],
+                    datasets: [{
+                        data: [segAlc, naoSegAlc],
+                        backgroundColor: ['#E1306C', '#8e8e8e'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '55%',
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    var label = context.label || '';
+                                    var val = context.raw;
+                                    return label + ': ' + formatNumber(val) + ' alcançados';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ==========================================
+        // EXTRA DATA CARDS
+        // ==========================================
+
+        function updateExtraDataCards(extraData) {
+            var container = document.getElementById('extraDataCards');
+            var section = document.getElementById('extraDataSection');
+
+            if (!extraData || !Array.isArray(extraData) || extraData.length === 0) {
+                // Não esconder a seção se já temos audience visível
+                var hasAudience = dashboardData.audience && (dashboardData.audience.seguidores?.alcance || dashboardData.audience.naoSeguidores?.alcance);
+                if (!hasAudience) {
+                    section.classList.add('hidden');
+                }
+                container.innerHTML = '<p style="color: var(--text-secondary); grid-column: 1/-1; text-align: center; padding: 40px 0;">Nenhum dado extra identificado. Processe as imagens para ver informações complementares.</p>';
+                return;
+            }
+
+            section.classList.remove('hidden');
+            container.innerHTML = '';
+
+            extraData.forEach(function(item) {
+                var card = document.createElement('div');
+                card.style.cssText = 'background: var(--bg-light); border-radius: 12px; padding: 16px; border: 1px solid var(--border);';
+
+                var valueDisplay = item.value;
+                if (item.type === 'number' && !isNaN(parseFloat(item.value))) {
+                    valueDisplay = formatNumber(parseFloat(item.value));
+                }
+
+                card.innerHTML = '<div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">' + item.label + '</div><div style="font-size: 18px; font-weight: 700; color: var(--ig-pink);">' + valueDisplay + '</div>';
+                container.appendChild(card);
+            });
+        }
+
+        function formatNumber(num) {
+            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return num.toString();
+        }
+
+        function getPostIcon(type) {
+            var icons = { 'reels': '🎬', 'carousel': '🎠', 'imagem': '🖼️', 'video': '📹' };
+            return icons[type] || '📄';
+        }
+
+        function updatePostsTable(tableId, posts, type) {
+            var tbody = document.querySelector('#' + tableId + ' tbody');
+            tbody.innerHTML = '';
+            posts.forEach(function(post, index) {
+                var row = tbody.insertRow();
+                row.innerHTML = '<td>' + (index + 1) + '</td><td><div class="post-preview"><div class="post-thumb">' + getPostIcon(post.tipo) + '</div><div><div>' + (post.tipo || 'Post') + '</div><div class="post-type">' + formatNumber(post.curtidas || 0) + ' curtidas · ' + formatNumber(post.comentarios || 0) + ' comentários</div></div></div></td><td>' + formatNumber(post.alcance || 0) + '</td><td><div class="engagement-bar"><div class="bar" style="width: ' + Math.min((post.engajamento || 0) * 2, 100) + 'px"></div><span>' + (post.engajamento || 0).toFixed(2) + '%</span></div></td>';
+            });
+        }
+
+        function updateComparisonChart(comparison) {
+            var ctx = document.getElementById('comparisonChart').getContext('2d');
+            if (comparisonChart) comparisonChart.destroy();
+            comparisonChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Reels', 'Posts', 'Stories'],
+                    datasets: [{
+                        label: 'Alcance',
+                        data: [comparison.reels?.alcance || 0, comparison.posts?.alcance || 0, comparison.stories?.alcance || 0],
+                        backgroundColor: ['#E1306C', '#F77737', '#FCAF45'],
+                        borderRadius: 8
+                    }, {
+                        label: 'Engajamento',
+                        data: [comparison.reels?.engajamento || 0, comparison.posts?.engajamento || 0, comparison.stories?.engajamento || 0],
+                        backgroundColor: ['#833AB4', '#5851DB', '#405DE6'],
+                        borderRadius: 8
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true } } }
+            });
+        }
+
+        function updateDistributionChart(comparison) {
+            var ctx = document.getElementById('distributionChart').getContext('2d');
+            if (distributionChart) distributionChart.destroy();
+            distributionChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Reels', 'Posts', 'Stories'],
+                    datasets: [{
+                        data: [comparison.reels?.alcance || 0, comparison.posts?.alcance || 0, comparison.stories?.alcance || 0],
+                        backgroundColor: ['#E1306C', '#F77737', '#FCAF45'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { position: 'bottom' } } }
+            });
+        }
+
+        // ==========================================
+        // EXPORT TO EXCEL (com gráficos)
+        // ==========================================
+
+        function exportToExcel() {
+            var wb = XLSX.utils.book_new();
+
+            // --- Sheet 1: Métricas Principais ---
+            var metricsData = [
+                ['📊 MÉTRICAS PRINCIPAIS - Instagram Insights', '', '', ''],
+                ['', '', '', ''],
+                ['Métrica', 'Valor', '', ''],
+                ['Alcance', dashboardData.metrics.alcance, '', ''],
+                ['Impressões', dashboardData.metrics.impressoes, '', ''],
+                ['Engajamento Total', dashboardData.metrics.engajamento, '', ''],
+                ['Taxa de Engajamento (%)', dashboardData.metrics.taxaEngajamento.toFixed(2) + '%', '', ''],
+                ['Crescimento de Seguidores', dashboardData.metrics.seguidores, '', ''],
+                ['Cliques em Links', dashboardData.metrics.cliques, '', '']
+            ];
+            var wsMetrics = XLSX.utils.aoa_to_sheet(metricsData);
+            // Larguras das colunas
+            wsMetrics['!cols'] = [{ wch: 30 }, { wch: 15 }, { wch: 5 }, { wch: 5 }];
+            XLSX.utils.book_append_sheet(wb, wsMetrics, 'Métricas');
+
+            // --- Sheet 2: Comparativo com gráfico (imagem) ---
+            var comparisonData = [
+                ['📊 COMPARATIVO REELS vs POSTS vs STORIES', '', '', ''],
+                ['', '', '', ''],
+                ['Formato', 'Alcance', 'Engajamento (%)', 'Qtd Posts'],
+                ['Reels', dashboardData.comparison.reels.alcance, dashboardData.comparison.reels.engajamento, dashboardData.comparison.reels.posts],
+                ['Posts (Carrossel)', dashboardData.comparison.posts.alcance, dashboardData.comparison.posts.engajamento, dashboardData.comparison.posts.posts],
+                ['Stories', dashboardData.comparison.stories.alcance, dashboardData.comparison.stories.engajamento, dashboardData.comparison.stories.posts]
+            ];
+            var wsComparison = XLSX.utils.aoa_to_sheet(comparisonData);
+            wsComparison['!cols'] = [{ wch: 22 }, { wch: 15 }, { wch: 18 }, { wch: 12 }];
+            XLSX.utils.book_append_sheet(wb, wsComparison, 'Comparativo');
+
+            // --- Sheet 3: Posts Detalhados ---
+            if (dashboardData.posts.length > 0) {
+                var postsData = [['📋 POSTS DETALHADOS', '', '', '', ''], ['', '', '', '', '']];
+                postsData.push(['#', 'Tipo', 'Alcance', 'Engajamento (%)', 'Curtidas', 'Comentários']);
+                dashboardData.posts.forEach(function(post, idx) {
+                    postsData.push([(idx + 1), post.tipo, post.alcance, (post.engajamento || 0).toFixed(2) + '%', post.curtidas || 0, post.comentarios || 0]);
+                });
+                var wsPosts = XLSX.utils.aoa_to_sheet(postsData);
+                wsPosts['!cols'] = [{ wch: 5 }, { wch: 18 }, { wch: 12 }, { wch: 18 }, { wch: 12 }, { wch: 14 }];
+                XLSX.utils.book_append_sheet(wb, wsPosts, 'Posts Detalhados');
+            }
+
+            // --- Sheet 4: Audiência ---
+            if (dashboardData.audience) {
+                var audienceData = [
+                    ['👥 AUDIÊNCIA - Seguidores vs Não Seguidores', '', ''],
+                    ['', '', ''],
+                    ['Grupo', 'Alcance', 'Porcentagem'],
+                    ['Seguidores', dashboardData.audience.seguidores?.alcance || 0, (dashboardData.audience.seguidores?.porcentagem || 0) + '%'],
+                    ['Não Seguidores', dashboardData.audience.naoSeguidores?.alcance || 0, (dashboardData.audience.naoSeguidores?.porcentagem || 0) + '%'],
+                    ['', '', ''],
+                    ['Total', (dashboardData.audience.seguidores?.alcance || 0) + (dashboardData.audience.naoSeguidores?.alcance || 0), '100%']
+                ];
+                var wsAudience = XLSX.utils.aoa_to_sheet(audienceData);
+                wsAudience['!cols'] = [{ wch: 22 }, { wch: 15 }, { wch: 15 }];
+                XLSX.utils.book_append_sheet(wb, wsAudience, 'Audiência');
+            }
+
+            // --- Sheet 5: Dados Extras ---
+            if (dashboardData.extraData && dashboardData.extraData.length > 0) {
+                var extraDataRows = [
+                    ['📋 INFORMAÇÕES COMPLEMENTARES', '', ''],
+                    ['', '', '']
+                ];
+                extraDataRows.push(['Informação', 'Valor', 'Tipo']);
+                dashboardData.extraData.forEach(function(item) {
+                    extraDataRows.push([item.label, item.value, item.type || 'text']);
+                });
+                var wsExtra = XLSX.utils.aoa_to_sheet(extraDataRows);
+                wsExtra['!cols'] = [{ wch: 30 }, { wch: 25 }, { wch: 10 }];
+                XLSX.utils.book_append_sheet(wb, wsExtra, 'Dados Extras');
+            }
+
+            // --- Sheet 6: Dashboard Visual (com gráficos como imagens) ---
+            try {
+                // Criar um canvas offscreen para gerar os gráficos
+                var exportCanvas = document.createElement('canvas');
+                exportCanvas.width = 800;
+                exportCanvas.height = 500;
+                var exportCtx = exportCanvas.getContext('2d');
+
+                // Desenhar fundo branco
+                exportCtx.fillStyle = '#FFFFFF';
+                exportCtx.fillRect(0, 0, 800, 500);
+
+                // Título
+                exportCtx.fillStyle = '#262626';
+                exportCtx.font = 'bold 22px Arial';
+                exportCtx.fillText('Instagram Insights - Dashboard', 20, 40);
+
+                // Linha separadora
+                exportCtx.strokeStyle = '#E1306C';
+                exportCtx.lineWidth = 3;
+                exportCtx.beginPath();
+                exportCtx.moveTo(20, 55);
+                exportCtx.lineTo(780, 55);
+                exportCtx.stroke();
+
+                // Métricas principais em grid
+                var metrics = [
+                    { label: 'Alcance', value: formatNumber(dashboardData.metrics.alcance), color: '#E1306C' },
+                    { label: 'Impressões', value: formatNumber(dashboardData.metrics.impressoes), color: '#F77737' },
+                    { label: 'Engajamento', value: formatNumber(dashboardData.metrics.engajamento), color: '#FCAF45' },
+                    { label: 'Seguidores', value: formatNumber(dashboardData.metrics.seguidores), color: '#833AB4' },
+                    { label: 'Taxa Eng.', value: dashboardData.metrics.taxaEngajamento.toFixed(1) + '%', color: '#5851DB' },
+                    { label: 'Cliques', value: formatNumber(dashboardData.metrics.cliques), color: '#405DE6' }
+                ];
+
+                var startY = 80;
+                var cardW = 120;
+                var cardH = 80;
+                var gap = 15;
+                var startX = 25;
+
+                metrics.forEach(function(m, i) {
+                    var x = startX + (i % 3) * (cardW + gap);
+                    var y = startY + Math.floor(i / 3) * (cardH + gap);
+
+                    // Card background
+                    exportCtx.fillStyle = '#FAFAFA';
+                    exportCtx.strokeStyle = '#DBDBDB';
+                    exportCtx.lineWidth = 1;
+                    exportCtx.beginPath();
+                    exportCtx.roundRect ? exportCtx.roundRect(x, y, cardW, cardH, 8) : exportCtx.rect(x, y, cardW, cardH);
+                    exportCtx.fill();
+                    exportCtx.stroke();
+
+                    // Label
+                    exportCtx.fillStyle = '#8E8E8E';
+                    exportCtx.font = '11px Arial';
+                    exportCtx.fillText(m.label, x + 8, y + 22);
+
+                    // Value
+                    exportCtx.fillStyle = m.color;
+                    exportCtx.font = 'bold 18px Arial';
+                    exportCtx.fillText(m.value, x + 8, y + 52);
+                });
+
+                // Gráfico de barras simples (Comparativo)
+                var chartX = 25;
+                var chartY = 280;
+                var chartW = 350;
+                var chartH = 180;
+
+                exportCtx.fillStyle = '#262626';
+                exportCtx.font = 'bold 14px Arial';
+                exportCtx.fillText('Comparativo por Formato', chartX, chartY - 10);
+
+                var formats = [
+                    { label: 'Reels', value: dashboardData.comparison.reels.alcance, color: '#E1306C' },
+                    { label: 'Posts', value: dashboardData.comparison.posts.alcance, color: '#F77737' },
+                    { label: 'Stories', value: dashboardData.comparison.stories.alcance, color: '#FCAF45' }
+                ];
+
+                var maxVal = Math.max(
+                    dashboardData.comparison.reels.alcance || 1,
+                    dashboardData.comparison.posts.alcance || 1,
+                    dashboardData.comparison.stories.alcance || 1
+                );
+
+                var barW = 60;
+                var barGap = 40;
+                var barStartX = chartX + 20;
+
+                formats.forEach(function(f, i) {
+                    var bx = barStartX + i * (barW + barGap);
+                    var bh = (f.value / maxVal) * (chartH - 30);
+                    var by = chartY + chartH - bh;
+
+                    // Bar
+                    exportCtx.fillStyle = f.color;
+                    exportCtx.fillRect(bx, by, barW, bh);
+
+                    // Value on top
+                    exportCtx.fillStyle = '#262626';
+                    exportCtx.font = 'bold 12px Arial';
+                    exportCtx.textAlign = 'center';
+                    exportCtx.fillText(formatNumber(f.value), bx + barW / 2, by - 5);
+
+                    // Label below
+                    exportCtx.fillStyle = '#8E8E8E';
+                    exportCtx.font = '11px Arial';
+                    exportCtx.fillText(f.label, bx + barW / 2, chartY + chartH + 15);
+                    exportCtx.textAlign = 'start';
+                });
+
+                // Gráfico de pizza simples (Audiência)
+                var pieX = 450;
+                var pieY = 270;
+                var pieR = 90;
+
+                exportCtx.fillStyle = '#262626';
+                exportCtx.font = 'bold 14px Arial';
+                exportCtx.fillText('Público', pieX + 30, pieY - 10);
+
+                var segAlc = dashboardData.audience?.seguidores?.alcance || 0;
+                var naoSegAlc = dashboardData.audience?.naoSeguidores?.alcance || 0;
+                var totalAud = segAlc + naoSegAlc || 1;
+                var segAngle = (segAlc / totalAud) * 2 * Math.PI;
+
+                // Desenhar pizza
+                exportCtx.beginPath();
+                exportCtx.moveTo(pieX, pieY);
+                exportCtx.arc(pieX, pieY, pieR, -Math.PI / 2, -Math.PI / 2 + segAngle);
+                exportCtx.closePath();
+                exportCtx.fillStyle = '#E1306C';
+                exportCtx.fill();
+
+                exportCtx.beginPath();
+                exportCtx.moveTo(pieX, pieY);
+                exportCtx.arc(pieX, pieY, pieR, -Math.PI / 2 + segAngle, -Math.PI / 2 + 2 * Math.PI);
+                exportCtx.closePath();
+                exportCtx.fillStyle = '#CCCCCC';
+                exportCtx.fill();
+
+                // Legenda
+                exportCtx.font = '11px Arial';
+                exportCtx.fillStyle = '#E1306C';
+                exportCtx.fillRect(pieX - 60, pieY + pieR + 20, 12, 12);
+                exportCtx.fillStyle = '#262626';
+                exportCtx.fillText('Seguidores: ' + formatNumber(segAlc), pieX - 44, pieY + pieR + 32);
+
+                exportCtx.fillStyle = '#CCCCCC';
+                exportCtx.fillRect(pieX + 60, pieY + pieR + 20, 12, 12);
+                exportCtx.fillStyle = '#262626';
+                exportCtx.fillText('Não Seg.: ' + formatNumber(naoSegAlc), pieX + 76, pieY + pieR + 32);
+
+                // Rodapé
+                exportCtx.fillStyle = '#8E8E8E';
+                exportCtx.font = '10px Arial';
+                var dateStr = new Date().toLocaleString('pt-BR');
+                exportCtx.fillText('Gerado em: ' + dateStr, 20, 480);
+
+                // Converter canvas para base64 e adicionar como imagem na planilha
+                var imgData = exportCanvas.toDataURL('image/png');
+                var imgBase64 = imgData.split(',')[1];
+
+                // Criar worksheet com a imagem
+                var wsVisual = XLSX.utils.aoa_to_sheet([
+                    ['📊 DASHBOARD VISUAL - Instagram Insights'],
+                    [''],
+                    ['IMPORTANTE: Abra este arquivo no Excel para ver o gráfico completo.'],
+                    ['Caso o gráfico não apareça, veja as abas "Métricas" e "Comparativo" para dados detalhados.']
+                ]);
+                wsVisual['!cols'] = [{ wch: 60 }];
+
+                // Adicionar imagem via relação de imagem (funciona no Excel)
+                try {
+                    if (typeof XLSX.utils.sheet_add_aoa === 'function') {
+                        // Tentar adicionar a imagem como link
+                        wsVisual['!images'] = [{
+                            base64: imgBase64,
+                            range: 'A5',
+                            width: 800,
+                            height: 500
+                        }];
+                    }
+                } catch (e) {
+                    console.warn('Não foi possível adicionar imagem na planilha:', e);
+                }
+
+                XLSX.utils.book_append_sheet(wb, wsVisual, 'Dashboard Visual');
+
+            } catch (e) {
+                console.warn('Erro ao gerar gráficos para Excel:', e);
+                // Continuar mesmo sem os gráficos
+            }
+
+            XLSX.writeFile(wb, 'Instagram_Dashboard_' + new Date().toISOString().split('T')[0] + '.xlsx');
+        }
+
+        // ==========================================
+        // DEMO DATA
+        // ==========================================
+
+        function loadDemoData() {
+            var demoData = {
+                metrics: { alcance: 154320, impressoes: 892450, engajamento: 28456, taxaEngajamento: 5.2, seguidores: 1523, cliques: 3421 },
+                comparison: {
+                    reels: { alcance: 95420, engajamento: 8.5, posts: 12 },
+                    posts: { alcance: 42300, engajamento: 4.2, posts: 18 },
+                    stories: { alcance: 16600, engajamento: 2.1, posts: 45 }
+                },
+                audience: {
+                    seguidores: { alcance: 108024, porcentagem: 70.0 },
+                    naoSeguidores: { alcance: 46296, porcentagem: 30.0 }
+                },
+                extraData: [
+                    { label: 'Contas Alcançadas', value: '154320', type: 'number' },
+                    { label: 'Frequência Média', value: '5.8 visitas/semana', type: 'text' },
+                    { label: 'Melhor Horário', value: '18h - 21h', type: 'text' },
+                    { label: 'Melhor Dia', value: 'Quarta-feira', type: 'text' }
+                ],
+                posts: [
+                    { tipo: 'reels', alcance: 15400, engajamento: 12.5, curtidas: 1850, comentarios: 45 },
+                    { tipo: 'reels', alcance: 12800, engajamento: 10.2, curtidas: 1300, comentarios: 32 },
+                    { tipo: 'carousel', alcance: 8900, engajamento: 7.8, curtidas: 690, comentarios: 28 },
+                    { tipo: 'reels', alcance: 11200, engajamento: 9.5, curtidas: 1050, comentarios: 38 },
+                    { tipo: 'imagem', alcance: 5600, engajamento: 5.2, curtidas: 290, comentarios: 12 },
+                    { tipo: 'carousel', alcance: 7200, engajamento: 6.8, curtidas: 490, comentarios: 22 },
+                    { tipo: 'reels', alcance: 9800, engajamento: 8.9, curtidas: 870, comentarios: 29 },
+                    { tipo: 'imagem', alcance: 4200, engajamento: 4.1, curtidas: 170, comentarios: 8 },
+                    { tipo: 'carousel', alcance: 6500, engajamento: 6.2, curtidas: 400, comentarios: 18 },
+                    { tipo: 'reels', alcance: 8700, engajamento: 7.8, curtidas: 680, comentarios: 24 },
+                    { tipo: 'imagem', alcance: 3100, engajamento: 3.2, curtidas: 100, comentarios: 5 },
+                    { tipo: 'imagem', alcance: 2800, engajamento: 2.8, curtidas: 78, comentarios: 4 },
+                    { tipo: 'carousel', alcance: 4500, engajamento: 4.5, curtidas: 200, comentarios: 10 },
+                    { tipo: 'reels', alcance: 6200, engajamento: 5.9, curtidas: 360, comentarios: 15 },
+                    { tipo: 'imagem', alcance: 1900, engajamento: 2.1, curtidas: 40, comentarios: 2 }
+                ]
+            };
+            updateDashboard(demoData);
+        }
+
+        window.addEventListener('load', loadDemoData);
+    </script>
+</body>
+</html>
