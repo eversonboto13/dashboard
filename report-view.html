@@ -691,41 +691,24 @@
             return { decompressFromEncodedURIComponent: decompressFromEncodedURIComponent };
         })();
 
-        // Carregar dados da URL ou do localStorage (formato 'share-<timestamp>')
+        // OBS: o suporte a links por hash/localStorage foi removido em favor do modo
+        // "Somente Visualização" que gera um arquivo HTML read-only para download.
         document.addEventListener('DOMContentLoaded', () => {
             const hash = window.location.hash.slice(1);
             if (!hash) return;
 
-            if (hash.startsWith('share-')) {
-                // Tentar recuperar do localStorage (deve ser aberto no mesmo navegador onde foi gerado)
-                const stored = localStorage.getItem(hash);
-                if (stored) {
-                    // stored é o payload compactado (LZString)
-                    try {
-                        const jsonString = LZString.decompressFromEncodedURIComponent(stored);
-                        if (jsonString) {
-                            const data = JSON.parse(jsonString);
-                            renderReport(data);
-                            return;
-                        }
-                    } catch (e) {
-                        console.error('Erro ao descompactar LZString do localStorage:', e);
-                    }
-                }
-                // Se não encontrou, informar usuário
-                document.getElementById('reportContent').innerHTML = `
-                    <div class="no-data">
-                        <div class="no-data-icon">⚠️</div>
-                        <h2>Relatório não encontrado</h2>
-                        <p>O link foi gerado neste navegador, mas o relatório não está disponível aqui. Para compartilhar com outras pessoas, use a opção de encurtador ou copie o link completo (com o hash grande) e envie diretamente.</p>
-                    </div>
-                `;
-                return;
-            }
-
-            // Fallback: tentar descompactar diretamente (formato antigo LZW/base64)
-            const data = decompressData(hash);
-            if (data) renderReport(data);
+            // Se alguém acessar com hash, mostrar instruções explicando que o método
+            // foi descontinuado e indicar como usar o arquivo HTML gerado.
+            document.getElementById('reportContent').innerHTML = `
+                <div class="no-data">
+                    <div class="no-data-icon">ℹ️</div>
+                    <h2>Suporte a links por hash desativado</h2>
+                    <p>Este relatório foi gerado usando uma versão anterior que armazenava dados no navegador.
+                    Agora, para compartilhar, gere um arquivo HTML no painel (botão "🔒 Somente Visualização")
+                    e envie esse arquivo para terceiros. Abra o arquivo HTML em qualquer navegador para ver o relatório.</p>
+                </div>
+            `;
+            return;
         });
     </script>
 </body>

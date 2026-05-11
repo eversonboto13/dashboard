@@ -260,7 +260,7 @@
             <input type="file" id="imageUpload" accept="image/*" multiple />
         </label>
         <button class="btn-excel" onclick="exportarExcel()">📥 Excel</button>
-        <button class="btn-excel" onclick="compartilharRelatorio()" style="background: linear-gradient(45deg, #833AB4, #E4405F);">🔗 Compartilhar</button>
+        <button class="btn-excel" onclick="gerarVisaoSomenteLeitura()" style="background: linear-gradient(45deg, #375a7f, #00a88a);">� Somente Visualização</button>
 
         <div class="api-container">
             <div class="api-toggle">
@@ -1016,45 +1016,66 @@ Retorne APENAS o JSON válido, sem explicações, sem markdown, sem comentários
             }
         }
 
-        function exportarExcel() {
+        async function exportarExcel() {
             if (dashboardData.posts.length === 0) {
                 alert('⚠️ Nenhum dado para exportar. Analise um print primeiro.');
                 return;
             }
 
+            // Usamos XLSX (já incluído via CDN) para gerar o arquivo.
             const wb = XLSX.utils.book_new();
 
-            // Métricas principais
-            const wsMetrics = XLSX.utils.aoa_to_sheet([
+            // -- Métricas principais (formato tabela) --
+            const metricsRows = [
                 ['Métrica', 'Valor'],
                 ['Alcance', dashboardData.metrics.alcance],
                 ['Impressões', dashboardData.metrics.impressoes],
                 ['Engajamento', dashboardData.metrics.engajamento],
                 ['Taxa de Engajamento %', dashboardData.metrics.taxa],
                 ['Novos Seguidores', dashboardData.metrics.seguidores],
-                ['Cliques em Links', dashboardData.metrics.cliques],
-                ['', ''],
-                ['Por Tipo', 'Alcance'],
-                ['Reels', dashboardData.reelsTotal],
-                ['Posts', dashboardData.postsTotal],
-                ['Stories', dashboardData.storiesTotal]
-            ]);
+                ['Cliques em Links', dashboardData.metrics.cliques]
+            ];
+            const wsMetrics = XLSX.utils.aoa_to_sheet(metricsRows);
+
+            // Aplicar estilo mínimo: grande parte do styling de XLSX é limitada no navegador,
+            // porém podemos ajustar largura de colunas
+            wsMetrics['!cols'] = [{ wch: 30 }, { wch: 20 }];
             XLSX.utils.book_append_sheet(wb, wsMetrics, 'Métricas');
 
-            // Posts detalhados
-            const postsData = [['#', 'Tipo', 'Legenda', 'Alcance', 'Engajamento', 'Taxa %']];
-            dashboardData.posts.forEach((p, i) => {
-                postsData.push([
-                    i + 1,
-                    p.tipo,
-                    p.legenda || '',
-                    p.alcance,
-                    p.engajamento,
-                    p.taxa
-                ]);
-            });
-            const wsPosts = XLSX.utils.aoa_to_sheet(postsData);
+            // -- Posts detalhados com cabeçalho --
+            const postsRows = [['#', 'Tipo', 'Legenda', 'Alcance', 'Engajamento', 'Taxa %']];
+            dashboardData.posts.forEach((p, i) => postsRows.push([
+                i + 1,
+                p.tipo || '',
+                p.legenda || '',
+                p.alcance || 0,
+                p.engajamento || 0,
+                p.taxa || 0
+            ]));
+            const wsPosts = XLSX.utils.aoa_to_sheet(postsRows);
+            wsPosts['!cols'] = [{ wch: 6 }, { wch: 12 }, { wch: 60 }, { wch: 12 }, { wch: 12 }, { wch: 12 }];
             XLSX.utils.book_append_sheet(wb, wsPosts, 'Posts');
+
+            // -- Dashboard visual: anexar imagens dos gráficos (canvas -> PNG) --
+            // Observação: inserir imagens diretamente em XLSX via xlsx.full.min.js no browser é limitado.
+            // Como alternativa segura, incluímos uma aba com links DataURI das imagens (usuário pode salvar localmente).
+            try {
+                const chartCanvases = Array.from(document.querySelectorAll('canvas'));
+                const imagesRows = [['Elemento', 'DataURI (clique para salvar)']];
+                for (const c of chartCanvases) {
+                    try {
+                        const dataUrl = c.toDataURL('image/png');
+                        imagesRows.push([c.id || 'chart', dataUrl]);
+                    } catch (e) {
+                        imagesRows.push([c.id || 'chart', 'erro ao gerar imagem']);
+                    }
+                }
+                const wsImages = XLSX.utils.aoa_to_sheet(imagesRows);
+                wsImages['!cols'] = [{ wch: 20 }, { wch: 120 }];
+                XLSX.utils.book_append_sheet(wb, wsImages, 'Imagens');
+            } catch (e) {
+                console.warn('Não foi possível inserir imagens no Excel:', e);
+            }
 
             XLSX.writeFile(wb, `Instagram_Dashboard_${new Date().toISOString().split('T')[0]}.xlsx`);
         }
@@ -1365,145 +1386,73 @@ Retorne APENAS o JSON válido, sem explicações, sem markdown, sem comentários
             }
         }
 
-        function descompactarDados(compressed) {
-            try {
-                // Tentar LZString primeiro
-                const jsonString = LZString.decompressFromEncodedURIComponent
-                    ? LZString.decompressFromEncodedURIComponent(compressed)
-                    : null;
-                if (jsonString) return JSON.parse(jsonString);
-            } catch (e) {
-                console.error('Erro ao descompactar com LZString:', e);
-            }
-            // Fallbacks: tentar decodeURIComponent + atob
-            try {
-                const decoded = decodeURIComponent(compressed);
-                const b = atob(decoded);
-                return JSON.parse(b);
-            } catch (e) {
-                try {
-                    const b = atob(compressed);
-                    return JSON.parse(b);
-                } catch (e2) {
-                    return null;
-                }
-            }
-        }
+        // Removida a função de compartilhamento por hash/localStorage/encurtador
+        // em favor do modo "Somente Visualização" que gera um HTML read-only para download.
 
-        // ✅ GERAR LINK COMPARTILHÁVEL (VERSÃO OTIMIZADA)
-        function compartilharRelatorio() {
+        // Gera um arquivo HTML read-only contendo os dados e imagens dos gráficos
+        // que pode ser enviado a terceiros (modo 'Somente Visualização').
+        async function gerarVisaoSomenteLeitura() {
             if (dashboardData.posts.length === 0) {
-                alert('⚠️ Nenhum dado para compartilhar. Analise um print primeiro.');
+                alert('⚠️ Nenhum dado disponível. Analise um print primeiro.');
                 return;
             }
 
-            // Preparar dados para compartilhamento (versão simplificada para encurtar)
-            const dadosCompartilhamento = {
-                id: 'R' + Math.random().toString(36).substr(2, 6).toUpperCase(),
-                d: new Date().toISOString().split('T')[0],
-                m: {
-                    a: dashboardData.metrics.alcance,
-                    i: dashboardData.metrics.impressoes,
-                    e: dashboardData.metrics.engajamento,
-                    t: dashboardData.metrics.taxa,
-                    s: dashboardData.metrics.seguidores,
-                    c: dashboardData.metrics.cliques
-                },
-                rt: dashboardData.reelsTotal,
-                pt: dashboardData.postsTotal,
-                st: dashboardData.storiesTotal,
-                p: dashboardData.posts.map(p => ({
-                    tp: p.tipo,
-                    l: (p.legenda || '').substring(0, 30),
-                    a: p.alcance,
-                    e: p.engajamento,
-                    tx: p.taxa
-                }))
-            };
-
-            // Compactar dados
-            const dadosCompactados = compactarDados(dadosCompartilhamento);
-            if (!dadosCompactados) {
-                alert('❌ Erro ao gerar link. Tente novamente.');
-                return;
+            // Capturar imagens dos charts
+            const charts = Array.from(document.querySelectorAll('canvas'));
+            const chartImages = {};
+            for (const c of charts) {
+                try {
+                    chartImages[c.id || ('chart-' + Math.random().toString(36).slice(2,6))] = c.toDataURL('image/png');
+                } catch (e) {
+                    chartImages[c.id || 'chart'] = null;
+                }
             }
 
-            // Detectar URL base para GitHub Pages ou local
-            let baseUrl;
-            const currentUrl = window.location.href;
-            
-            if (currentUrl.includes('github.io')) {
-                // Está no GitHub Pages
-                baseUrl = currentUrl.replace('dashboard.html', 'report-view.html');
-            } else if (currentUrl.includes('localhost') || currentUrl.includes('127.0.0.1') || currentUrl.startsWith('file://')) {
-                // Local - usar GitHub Pages como fallback
-                baseUrl = 'https://eversonboto13.github.io/dashboard/report-view.html';
-            } else {
-                baseUrl = currentUrl.replace('dashboard.html', 'report-view.html');
-            }
+            // Construir HTML read-only simples
+            const readOnlyHtml = `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Relatório (Somente Visualização)</title>
+  <style>body{font-family:Arial,Helvetica,sans-serif;padding:20px;color:#222} h1{font-size:20px} table{border-collapse:collapse;width:100%;margin-bottom:16px} th,td{border:1px solid #ddd;padding:8px} th{background:#f7f7f7}</style>
+</head>
+<body>
+  <h1>Relatório - Somente Visualização</h1>
+  <p>Gerado em: ${new Date().toLocaleString()}</p>
+  <h2>Métricas Principais</h2>
+  <table>
+    <tr><th>Métrica</th><th>Valor</th></tr>
+    <tr><td>Alcance</td><td>${dashboardData.metrics.alcance}</td></tr>
+    <tr><td>Impressões</td><td>${dashboardData.metrics.impressoes}</td></tr>
+    <tr><td>Engajamento</td><td>${dashboardData.metrics.engajamento}</td></tr>
+    <tr><td>Taxa de Engajamento %</td><td>${dashboardData.metrics.taxa}</td></tr>
+    <tr><td>Novos Seguidores</td><td>${dashboardData.metrics.seguidores}</td></tr>
+    <tr><td>Cliques em Links</td><td>${dashboardData.metrics.cliques}</td></tr>
+  </table>
 
-            // Salvar payload compactado no localStorage com chave curta baseada na data/hora
-            const timestampKey = 'share-' + new Date().toISOString().replace(/[:.]/g, '-');
-            try {
-                localStorage.setItem(timestampKey, dadosCompactados);
-            } catch (e) {
-                console.warn('Não foi possível salvar no localStorage:', e);
-            }
+  <h2>Posts Detalhados</h2>
+  <table>
+    <tr><th>#</th><th>Tipo</th><th>Legenda</th><th>Alcance</th><th>Engajamento</th><th>Taxa %</th></tr>
+    ${dashboardData.posts.map((p,i)=>`<tr><td>${i+1}</td><td>${(p.tipo||'')}</td><td>${(p.legenda||'').replace(/</g,'&lt;')}</td><td>${p.alcance||0}</td><td>${p.engajamento||0}</td><td>${p.taxa||0}</td></tr>`).join('')}
+  </table>
 
-            const shortKey = timestampKey;
-            const fullShareUrl = `${baseUrl}#${dadosCompactados}`;
-            const shortShareUrl = `${baseUrl}#${shortKey}`;
+  <h2>Gráficos</h2>
+  ${Object.entries(chartImages).map(([id,uri])=>uri?`<div style="margin-bottom:16px"><h3>${id}</h3><img src="${uri}" alt="${id}" style="max-width:100%;border:1px solid #ddd;padding:4px;background:#fff"/></div>`:`<div><h3>${id}</h3><p>Imagem não disponível</p></div>`).join('')}
 
-            // Mostrar tamanho do link
-            const tamanhoOriginal = JSON.stringify(dadosCompartilhamento).length;
-            const tamanhoFinal = dadosCompactados.length;
-            const reducao = Math.round((1 - tamanhoFinal / tamanhoOriginal) * 100);
+  <footer style="margin-top:24px;color:#666;font-size:12px">Relatório gerado pelo Insight Dash — versão somente visualização (read-only)</footer>
+</body>
+</html>`;
 
-            // Tentar encurtar via endpoint /api/shorten (se implantado)
-            (async () => {
-                // 1) Tentar is.gd (puro cliente) — simples e sem servidor
-                try {
-                    const isgd = 'https://is.gd/create.php?format=simple&url=' + encodeURIComponent(fullShareUrl);
-                    const r = await fetch(isgd);
-                    if (r.ok) {
-                        const short = (await r.text()).trim();
-                        if (short && short.startsWith('http')) {
-                            await navigator.clipboard.writeText(short);
-                            alert(`✅ Link curto (is.gd) copiado!\n\n${short}`);
-                            return;
-                        }
-                    }
-                } catch (e) {
-                    // continuar para o próximo fallback
-                }
-
-                // 2) Tentar endpoint /api/shorten (se implantado)
-                try {
-                    const resp = await fetch('/api/shorten', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ url: fullShareUrl })
-                    });
-                    if (resp.ok) {
-                        const j = await resp.json();
-                        if (j.shortUrl && j.shortUrl.length <= 50) {
-                            await navigator.clipboard.writeText(j.shortUrl);
-                            alert(`✅ Link curto copiado!\n\n${j.shortUrl}`);
-                            return;
-                        }
-                    }
-                } catch (e) {
-                    // ignore
-                }
-
-                // 3) Fallback final: copiar o fullShareUrl
-                try {
-                    await navigator.clipboard.writeText(fullShareUrl);
-                    alert(`✅ Link copiado (completo)!\n\n📊 ${fullShareUrl.substring(0, 80)}...\n📦 ${tamanhoOriginal} → ${tamanhoFinal} caracteres (${reducao}% menor)\n🔗 Qualquer pessoa pode visualizar`);
-                } catch (e) {
-                    prompt('📊 Copie este link para compartilhar (completo):', fullShareUrl);
-                }
-            })();
+            // Criar blob e baixar
+            const blob = new Blob([readOnlyHtml], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Relatorio_Somente_Visualizacao_${new Date().toISOString().split('T')[0]}.html`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
         }
     </script>
 </body>
