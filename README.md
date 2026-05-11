@@ -8,7 +8,8 @@ Passos rápidos para publicar no GitHub Pages:
 2. No seu terminal (PowerShell), dentro da pasta deste projeto execute:
 
 ```powershell
-cd C:\Users\1980000962\CascadeProjects\windsurf-project-2
+# Acesse a pasta do projeto local (substitua pelo caminho do seu projeto)
+cd C:\caminho\para\seu\projeto
 git init
 git add .
 git commit -m "🎉 Publicar Insight Dash"

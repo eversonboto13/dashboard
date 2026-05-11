@@ -28,9 +28,10 @@ Siga este guia para publicar o **Insight Dash** online e compartilhar relatório
 
 Abra o **Prompt de Comando** (cmd) ou **PowerShell** e execute:
 
-```bash
-# Navegue até a pasta do projeto
-cd C:\Users\1980000962\CascadeProjects\windsurf-project-2
+```powershell
+# Navegue até a pasta do projeto (substitua pelo caminho do seu projeto)
+# Exemplo: cd C:\Users\<seu_usuario>\CascadeProjects\windsurf-project-2
+cd C:\caminho\para\seu\projeto
 
 # Inicializar Git
 git init
