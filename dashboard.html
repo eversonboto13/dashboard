@@ -579,6 +579,26 @@
             const elComparison = document.getElementById('chartComparison');
             const elEngagement = document.getElementById('chartEngagement');
 
+            // Diagnostic logs: existence and bounding boxes
+            const canvasList = [
+                { id: 'chartBar', el: elBar },
+                { id: 'chartDoughnut', el: elRose },
+                { id: 'chartComparison', el: elComparison },
+                { id: 'chartEngagement', el: elEngagement }
+            ];
+            canvasList.forEach(cinfo => {
+                try {
+                    if (!cinfo.el) {
+                        console.warn(`canvas #${cinfo.id} não encontrado (null)`);
+                        return;
+                    }
+                    const rect = cinfo.el.getBoundingClientRect();
+                    console.log(`canvas #${cinfo.id}: width(attr)=${cinfo.el.width}, height(attr)=${cinfo.el.height}, rect.width=${rect.width.toFixed(1)}, rect.height=${rect.height.toFixed(1)}`);
+                } catch (e) {
+                    console.warn('Erro ao inspecionar canvas', cinfo.id, e);
+                }
+            });
+
             // Se os canvases ainda não tiverem dimensões (por exemplo, initCharts foi chamado enquanto
             // o layout ainda estava sendo calculado ou a aba estava oculta), re-tentar algumas vezes.
             const canvases = [elBar, elRose, elComparison, elEngagement].filter(Boolean);
@@ -602,6 +622,14 @@
             const ctxComparison = (elComparison && elComparison.getContext) ? elComparison.getContext('2d') : null;
             const ctxEngagement = (elEngagement && elEngagement.getContext) ? elEngagement.getContext('2d') : null;
 
+            console.log('initCharts: contexts', {
+                ctxBar: !!ctxBar,
+                ctxRose: !!ctxRose,
+                ctxComparison: !!ctxComparison,
+                ctxEngagement: !!ctxEngagement,
+                chartJsVersion: (typeof Chart !== 'undefined' && Chart.version) ? Chart.version : (typeof Chart !== 'undefined' ? 'Chart loaded' : 'Chart missing')
+            });
+
             if (chartBarInstance) chartBarInstance.destroy();
             if (chartDoughnutInstance) chartDoughnutInstance.destroy();
             if (chartComparisonInstance) chartComparisonInstance.destroy();
@@ -609,23 +637,28 @@
 
             // Gráfico de barras principais - USA TOTAIS DA API
             if (ctxBar) {
-                chartBarInstance = new Chart(ctxBar, {
-                type: 'bar',
-                data: {
-                    labels: ['Reels', 'Posts', 'Stories'],
-                    datasets: [{
-                        data: [reelsTotal, postsTotal, storiesTotal].map(v => Number(v) || 0),
-                        // usar cores com alpha para garantir preenchimento visível
-                        backgroundColor: ['rgba(228,64,95,0.85)','rgba(245,133,41,0.85)','rgba(252,175,69,0.85)'],
-                        borderColor: ['#E4405F','#F58529','#FCAF45'],
-                        borderWidth: 0,
-                        borderRadius: 8
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-                });
-                // garantir renderização e ajuste de tamanho (útil se estava em aba oculta)
-                try { chartBarInstance.update(); chartBarInstance.resize(); } catch (e) {}
+                try {
+                    chartBarInstance = new Chart(ctxBar, {
+                        type: 'bar',
+                        data: {
+                            labels: ['Reels', 'Posts', 'Stories'],
+                            datasets: [{
+                                data: [reelsTotal, postsTotal, storiesTotal].map(v => Number(v) || 0),
+                                // usar cores com alpha para garantir preenchimento visível
+                                backgroundColor: ['rgba(228,64,95,0.85)','rgba(245,133,41,0.85)','rgba(252,175,69,0.85)'],
+                                borderColor: ['#E4405F','#F58529','#FCAF45'],
+                                borderWidth: 0,
+                                borderRadius: 8
+                            }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                    });
+                    // garantir renderização e ajuste de tamanho (útil se estava em aba oculta)
+                    chartBarInstance.update(); chartBarInstance.resize();
+                    console.log('chartBarInstance criado com sucesso');
+                } catch (err) {
+                    console.error('Erro ao criar chartBarInstance:', err, { reelsTotal, postsTotal, storiesTotal });
+                }
             } else {
                 console.warn('canvas #chartBar não encontrado — pulando criação do gráfico de barras');
             }
@@ -639,20 +672,25 @@
             
             // Gráfico de doughnut - USA CONTAGEM DE POSTS
             if (ctxRose) {
-                chartDoughnutInstance = new Chart(ctxRose, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Reels', 'Carrossel', 'Imagem'],
-                    datasets: [{ 
-                        data: [postsByType.reels, postsByType.carousel, postsByType.imagem].map(v => Number(v) || 0), 
-                        backgroundColor: ['rgba(228,64,95,0.85)','rgba(245,133,41,0.85)','rgba(66,133,244,0.85)'], 
-                        borderColor: ['#fff','#fff','#fff'],
-                        borderWidth: 1 
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
-                });
-                try { chartDoughnutInstance.update(); chartDoughnutInstance.resize(); } catch (e) {}
+                try {
+                    chartDoughnutInstance = new Chart(ctxRose, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Reels', 'Carrossel', 'Imagem'],
+                            datasets: [{ 
+                                data: [postsByType.reels, postsByType.carousel, postsByType.imagem].map(v => Number(v) || 0), 
+                                backgroundColor: ['rgba(228,64,95,0.85)','rgba(245,133,41,0.85)','rgba(66,133,244,0.85)'], 
+                                borderColor: ['#fff','#fff','#fff'],
+                                borderWidth: 1 
+                            }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+                    });
+                    chartDoughnutInstance.update(); chartDoughnutInstance.resize();
+                    console.log('chartDoughnutInstance criado com sucesso');
+                } catch (err) {
+                    console.error('Erro ao criar chartDoughnutInstance:', err, { postsByType });
+                }
             } else {
                 console.warn('canvas #chartDoughnut não encontrado — pulando doughnut');
             }
@@ -690,58 +728,69 @@
 
             // Gráfico Comparativo de Alcance (Reels vs Carrossel vs Imagem)
             if (ctxComparison) {
-                chartComparisonInstance = new Chart(ctxComparison, {
-                type: 'bar',
-                data: {
-                    labels: ['Reels', 'Carrossel', 'Imagem'],
-                    datasets: [{
-                        label: 'Alcance',
-                        data: (alcanceByType || [0,0,0]).map(v => Number(v) || 0),
-                        backgroundColor: ['rgba(228,64,95,0.75)', 'rgba(245,133,41,0.75)', 'rgba(66,133,244,0.75)'],
-                        borderColor: ['#E4405F', '#F58529', '#4285F4'],
-                        borderWidth: 0,
-                        borderRadius: 8
-                    }]
-                },
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false, 
-                    plugins: { legend: { display: false } }
+                try {
+                    chartComparisonInstance = new Chart(ctxComparison, {
+                        type: 'bar',
+                        data: {
+                            labels: ['Reels', 'Carrossel', 'Imagem'],
+                            datasets: [{
+                                label: 'Alcance',
+                                data: (alcanceByType || [0,0,0]).map(v => Number(v) || 0),
+                                backgroundColor: ['rgba(228,64,95,0.75)', 'rgba(245,133,41,0.75)', 'rgba(66,133,244,0.75)'],
+                                borderColor: ['#E4405F', '#F58529', '#4285F4'],
+                                borderWidth: 0,
+                                borderRadius: 8
+                            }]
+                        },
+                        options: { 
+                            responsive: true, 
+                            maintainAspectRatio: false, 
+                            plugins: { legend: { display: false } }
+                        }
+                    });
+                    chartComparisonInstance.update(); chartComparisonInstance.resize();
+                    console.log('chartComparisonInstance criado com sucesso');
+                } catch (err) {
+                    console.error('Erro ao criar chartComparisonInstance:', err, { alcanceByType });
                 }
-                });
-                try { chartComparisonInstance.update(); chartComparisonInstance.resize(); } catch (e) {}
             } else {
                 console.warn('canvas #chartComparison não encontrado — pulando comparativo');
             }
 
             // Gráfico de Taxa de Engajamento por Formato
             if (ctxEngagement) {
-                chartEngagementInstance = new Chart(ctxEngagement, {
-                type: 'line',
-                data: {
-                    labels: ['Reels', 'Carrossel', 'Imagem'],
-                    datasets: [{
-                        label: 'Taxa de Engajamento (%)',
-                        data: (engagementByType || [0,0,0]).map(v => Number(v) || 0),
-                        borderColor: '#E4405F',
-                        backgroundColor: 'rgba(228, 64, 95, 0.1)',
-                        fill: true,
-                        tension: 0.4,
-                        pointBackgroundColor: '#E4405F',
-                        pointRadius: 6
-                    }]
-                },
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: { beginAtZero: true, suggestedMax: Math.max(10, Math.ceil((Math.max(...engagementByType.map(v=>Number(v)||0))||0) * 1.15)),
-                            ticks: { callback: function(value){ return (value >= 1000 ? String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ",") : value) + '%'; } }
+                try {
+                    chartEngagementInstance = new Chart(ctxEngagement, {
+                        type: 'line',
+                        data: {
+                            labels: ['Reels', 'Carrossel', 'Imagem'],
+                            datasets: [{
+                                label: 'Taxa de Engajamento (%)',
+                                data: (engagementByType || [0,0,0]).map(v => Number(v) || 0),
+                                borderColor: '#E4405F',
+                                backgroundColor: 'rgba(228, 64, 95, 0.1)',
+                                fill: true,
+                                tension: 0.4,
+                                pointBackgroundColor: '#E4405F',
+                                pointRadius: 6
+                            }]
+                        },
+                        options: { 
+                            responsive: true, 
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: { beginAtZero: true, suggestedMax: Math.max(10, Math.ceil((Math.max(...engagementByType.map(v=>Number(v)||0))||0) * 1.15)),
+                                    ticks: { callback: function(value){ return (value >= 1000 ? String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ",") : value) + '%'; } }
+                                }
+                            }
                         }
-                    }
+                    });
+                    chartEngagementInstance.update(); chartEngagementInstance.resize();
+                    console.log('chartEngagementInstance criado com sucesso');
+                } catch (err) {
+                    console.error('Erro ao criar chartEngagementInstance:', err, { engagementByType });
                 }
-            });
-                try { chartEngagementInstance.update(); chartEngagementInstance.resize(); } catch(e){}
+            }
         }
 
         // ✅ FUNÇÃO PARA ALTERNAR ENTRE APIS
