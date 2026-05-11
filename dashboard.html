@@ -574,10 +574,14 @@
             
             console.log('📊 Valores usados nos gráficos:', { reelsTotal, postsTotal, storiesTotal });
 
-            const ctxBar = document.getElementById('chartBar').getContext('2d');
-            const ctxRose = document.getElementById('chartDoughnut').getContext('2d');
-            const ctxComparison = document.getElementById('chartComparison').getContext('2d');
-            const ctxEngagement = document.getElementById('chartEngagement').getContext('2d');
+            const elBar = document.getElementById('chartBar');
+            const elRose = document.getElementById('chartDoughnut');
+            const elComparison = document.getElementById('chartComparison');
+            const elEngagement = document.getElementById('chartEngagement');
+            const ctxBar = (elBar && elBar.getContext) ? elBar.getContext('2d') : null;
+            const ctxRose = (elRose && elRose.getContext) ? elRose.getContext('2d') : null;
+            const ctxComparison = (elComparison && elComparison.getContext) ? elComparison.getContext('2d') : null;
+            const ctxEngagement = (elEngagement && elEngagement.getContext) ? elEngagement.getContext('2d') : null;
 
             if (chartBarInstance) chartBarInstance.destroy();
             if (chartDoughnutInstance) chartDoughnutInstance.destroy();
@@ -585,12 +589,13 @@
             if (chartEngagementInstance) chartEngagementInstance.destroy();
 
             // Gráfico de barras principais - USA TOTAIS DA API
-            chartBarInstance = new Chart(ctxBar, {
+            if (ctxBar) {
+                chartBarInstance = new Chart(ctxBar, {
                 type: 'bar',
                 data: {
                     labels: ['Reels', 'Posts', 'Stories'],
                     datasets: [{
-                        data: [reelsTotal, postsTotal, storiesTotal],
+                        data: [reelsTotal, postsTotal, storiesTotal].map(v => Number(v) || 0),
                         // usar cores com alpha para garantir preenchimento visível
                         backgroundColor: ['rgba(228,64,95,0.85)','rgba(245,133,41,0.85)','rgba(252,175,69,0.85)'],
                         borderColor: ['#E4405F','#F58529','#FCAF45'],
@@ -599,7 +604,12 @@
                     }]
                 },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-            });
+                });
+                // garantir renderização e ajuste de tamanho (útil se estava em aba oculta)
+                try { chartBarInstance.update(); chartBarInstance.resize(); } catch (e) {}
+            } else {
+                console.warn('canvas #chartBar não encontrado — pulando criação do gráfico de barras');
+            }
 
             // Contar quantidade de posts por tipo para o doughnut
             const postsByType = {
@@ -609,19 +619,24 @@
             };
             
             // Gráfico de doughnut - USA CONTAGEM DE POSTS
-            chartDoughnutInstance = new Chart(ctxRose, {
+            if (ctxRose) {
+                chartDoughnutInstance = new Chart(ctxRose, {
                 type: 'doughnut',
                 data: {
                     labels: ['Reels', 'Carrossel', 'Imagem'],
                     datasets: [{ 
-                        data: [postsByType.reels, postsByType.carousel, postsByType.imagem], 
+                        data: [postsByType.reels, postsByType.carousel, postsByType.imagem].map(v => Number(v) || 0), 
                         backgroundColor: ['rgba(228,64,95,0.85)','rgba(245,133,41,0.85)','rgba(66,133,244,0.85)'], 
                         borderColor: ['#fff','#fff','#fff'],
                         borderWidth: 1 
                     }]
                 },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
-            });
+                });
+                try { chartDoughnutInstance.update(); chartDoughnutInstance.resize(); } catch (e) {}
+            } else {
+                console.warn('canvas #chartDoughnut não encontrado — pulando doughnut');
+            }
             
             // Calcular métricas por tipo para comparação
             const postsReels = dashboardData.posts.filter(p => p.tipo === 'reel' || p.tipo === 'reels');
@@ -647,13 +662,14 @@
             ] : [0, 0, 0];
 
             // Gráfico Comparativo de Alcance (Reels vs Carrossel vs Imagem)
-            chartComparisonInstance = new Chart(ctxComparison, {
+            if (ctxComparison) {
+                chartComparisonInstance = new Chart(ctxComparison, {
                 type: 'bar',
                 data: {
                     labels: ['Reels', 'Carrossel', 'Imagem'],
                     datasets: [{
                         label: 'Alcance',
-                        data: alcanceByType,
+                        data: (alcanceByType || [0,0,0]).map(v => Number(v) || 0),
                         backgroundColor: ['rgba(228,64,95,0.75)', 'rgba(245,133,41,0.75)', 'rgba(66,133,244,0.75)'],
                         borderColor: ['#E4405F', '#F58529', '#4285F4'],
                         borderWidth: 0,
@@ -665,16 +681,21 @@
                     maintainAspectRatio: false, 
                     plugins: { legend: { display: false } }
                 }
-            });
+                });
+                try { chartComparisonInstance.update(); chartComparisonInstance.resize(); } catch (e) {}
+            } else {
+                console.warn('canvas #chartComparison não encontrado — pulando comparativo');
+            }
 
             // Gráfico de Taxa de Engajamento por Formato
-            chartEngagementInstance = new Chart(ctxEngagement, {
+            if (ctxEngagement) {
+                chartEngagementInstance = new Chart(ctxEngagement, {
                 type: 'line',
                 data: {
                     labels: ['Reels', 'Carrossel', 'Imagem'],
                     datasets: [{
                         label: 'Taxa de Engajamento (%)',
-                        data: engagementByType,
+                        data: (engagementByType || [0,0,0]).map(v => Number(v) || 0),
                         borderColor: '#E4405F',
                         backgroundColor: 'rgba(228, 64, 95, 0.1)',
                         fill: true,
