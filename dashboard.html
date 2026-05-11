@@ -1120,6 +1120,21 @@ Retorne APENAS o JSON válido, sem explicações, sem markdown, sem comentários
                     }
                 }
 
+                // Se a API não retornou totais agregados (reels/posts/stories === 0),
+                // calcular a partir da lista de posts para garantir consistência entre os gráficos.
+                try {
+                    const sum = (arr, key) => (arr || []).reduce((a, b) => a + (Number(b[key]) || 0), 0);
+                    const computedReels = sum(dashboardData.posts.filter(p => p.tipo === 'reel' || p.tipo === 'reels'), 'alcance');
+                    const computedPosts = sum(dashboardData.posts.filter(p => p.tipo === 'carrossel' || p.tipo === 'carousel'), 'alcance');
+                    const computedStories = sum(dashboardData.posts.filter(p => p.tipo === 'imagem' || p.tipo === 'image' || !p.tipo), 'alcance');
+
+                    // Preferir valores computados se os totais da API forem 0
+                    if ((!dashboardData.reelsTotal || dashboardData.reelsTotal === 0) && computedReels > 0) dashboardData.reelsTotal = computedReels;
+                    if ((!dashboardData.postsTotal || dashboardData.postsTotal === 0) && computedPosts > 0) dashboardData.postsTotal = computedPosts;
+                    if ((!dashboardData.storiesTotal || dashboardData.storiesTotal === 0) && computedStories > 0) dashboardData.storiesTotal = computedStories;
+                } catch (e) {
+                    console.warn('Não foi possível computar totais a partir dos posts:', e);
+                }
                 populateDashboard();
 
                 // Debug: mostrar os dados finais antes de criar os charts
