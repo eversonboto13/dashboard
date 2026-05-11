@@ -703,14 +703,29 @@
             const calcTotal = (arr, key) => arr.reduce((a, b) => a + (b[key] || 0), 0);
             const calcAvg = (arr, key) => arr.length ? arr.reduce((a, b) => a + (b[key] || 0), 0) / arr.length : 0;
             
-            // Se temos posts individuais, usar eles. Senão, usar os totais da API
-            const hasPostData = dashboardData.posts.length > 0 && dashboardData.posts[0].alcance > 0;
-            
-            const alcanceByType = hasPostData ? [
-                calcTotal(postsReels, 'alcance'),
-                calcTotal(postsCarousel, 'alcance'),
-                calcTotal(postsImagem, 'alcance')
-            ] : [reelsTotal, postsTotal, storiesTotal];
+            // Se temos posts individuais com dados válidos (qualquer post com alcance > 0), usar eles.
+            // A validação anterior usava apenas o primeiro post (fragil). Verificar qualquer post com alcance > 0.
+            const hasPostData = dashboardData.posts.length > 0 && dashboardData.posts.some(p => (Number(p.alcance) || 0) > 0);
+
+            // Preferir usar os totais calculados a partir dos posts quando disponíveis.
+            let alcanceByType;
+            if (hasPostData) {
+                alcanceByType = [
+                    calcTotal(postsReels, 'alcance'),
+                    calcTotal(postsCarousel, 'alcance'),
+                    calcTotal(postsImagem, 'alcance')
+                ];
+            } else if (dashboardData.posts.length > 0) {
+                // Se não temos postData (ex: primeiro post tem alcance 0) mas há posts listados,
+                // ainda assim podemos somar os valores da lista como fallback.
+                alcanceByType = [
+                    calcTotal(postsReels, 'alcance'),
+                    calcTotal(postsCarousel, 'alcance'),
+                    calcTotal(postsImagem, 'alcance')
+                ];
+            } else {
+                alcanceByType = [reelsTotal, postsTotal, storiesTotal];
+            }
             
             let engagementByType = hasPostData ? [
                 calcAvg(postsReels, 'taxa'),
