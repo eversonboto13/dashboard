@@ -161,10 +161,11 @@
             text-align: center;
         }
         .post-caption {
-            max-width: 150px;
+            max-width: 250px;
             overflow: hidden;
             text-overflow: ellipsis;
-            white-space: nowrap;
+            white-space: normal; /* permitir quebra de linha para mostrar mais texto */
+            word-break: break-word;
             font-size: 0.75rem;
             color: var(--text-grey);
         }
@@ -521,7 +522,7 @@
                             <div class="post-preview">
                                 <span class="post-icon">${icon}</span>
                                 <div>
-                                    <div>${p.legenda || p.id || 'Post ' + (i+1)}</div>
+                                            <div title="${(p.legenda || p.id || 'Post ' + (i+1)).replace(/"/g,'&quot;')}">${(p.legenda || p.id || 'Post ' + (i+1)).replace(/</g,'&lt;')}</div>
                                 </div>
                             </div>
                         </td>
@@ -548,7 +549,7 @@
                             <div class="post-preview">
                                 <span class="post-icon">${icon}</span>
                                 <div>
-                                    <div>${p.legenda || p.id || 'Post ' + (sorted.length - 9 + i)}</div>
+                                    <div title="${(p.legenda || p.id || 'Post ' + (sorted.length - 9 + i)).replace(/"/g,'&quot;')}">${(p.legenda || p.id || 'Post ' + (sorted.length - 9 + i)).replace(/</g,'&lt;')}</div>
                                 </div>
                             </div>
                         </td>
